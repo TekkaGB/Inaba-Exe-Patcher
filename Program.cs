@@ -66,15 +66,13 @@ namespace p4gpc.inaba
 
             /* Your mod code starts here. */
 
-            string patchPath = @"mods\patches";
+            string patchPath = "mods/patches";
 
-            if (!Directory.Exists(patchPath))
+            if (Directory.Exists(patchPath))
             {
-                _logger.WriteLine($"[Inaba Exe Patcher] Created {patchPath}. Put your patches/patch folders there.");
-                Directory.CreateDirectory(patchPath);
+                exePatcher = new exePatch(_logger, _configuration);
+                exePatcher.Patch();
             }
-            exePatcher = new exePatch(_logger, _configuration);
-            exePatcher.Patch();
         }
 
         private void OnConfigurationUpdated(IConfigurable obj)

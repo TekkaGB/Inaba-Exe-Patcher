@@ -90,14 +90,14 @@ namespace p4gpc.inaba
 
             List<string> patchPriorityList = new List<string>();
             // Add main directory as last entry for least priority
-            patchPriorityList.Add($@"mods\patches");
+            patchPriorityList.Add($@"mods/patches");
 
             // Add every other directory
             foreach (var dir in Directory.EnumerateDirectories(@"mods\patches"))
             {
                 var name = Path.GetFileName(dir);
 
-                patchPriorityList.Add($@"mods\patches\{name}");
+                patchPriorityList.Add($@"mods/patches/{name}");
             }
 
             // Reverse order of config patch list so that the higher priorities are moved to the end
@@ -107,10 +107,10 @@ namespace p4gpc.inaba
             foreach (var dir in revEnabledPatches)
             {
                 var name = Path.GetFileName(dir);
-                if (patchPriorityList.Contains($@"mods\patches\{name}", StringComparer.InvariantCultureIgnoreCase))
+                if (patchPriorityList.Contains($@"mods/patches/{name}", StringComparer.InvariantCultureIgnoreCase))
                 {
-                    patchPriorityList.Remove($@"mods\patches\{name}");
-                    patchPriorityList.Add($@"mods\patches\{name}");
+                    patchPriorityList.Remove($@"mods/patches/{name}");
+                    patchPriorityList.Add($@"mods/patches/{name}");
                     //patchPriorityList.Insert(0,$@"mods\patches\{name}");
                 }
             }
