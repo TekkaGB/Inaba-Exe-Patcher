@@ -19,7 +19,6 @@ namespace p4gpc.inaba
 
         private readonly Process mProc;
         private readonly IntPtr mBaseAddr;
-        private readonly IntPtr mHnd;
         private Scanner scanner;
 
         public exePatch(ILogger logger, Config config)
@@ -28,8 +27,7 @@ namespace p4gpc.inaba
             mConfig = config;
             mProc = Process.GetCurrentProcess();
             mBaseAddr = mProc.MainModule.BaseAddress;
-            mHnd = mProc.Handle;
-            mem = new Memory(mProc.Handle);
+            mem = new Memory();
         }
 
         private void singlePatch(string filePath)
@@ -135,7 +133,6 @@ namespace p4gpc.inaba
                     singlePatch(f);
                 }
             }
-            return;
         }
     }
 }
