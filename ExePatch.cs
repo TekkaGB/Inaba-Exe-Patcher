@@ -90,7 +90,7 @@ namespace p4gpc.inaba
             patchPriorityList.Add($@"mods/patches");
 
             // Add every other directory
-            foreach (var dir in Directory.EnumerateDirectories(@"mods\patches"))
+            foreach (var dir in Directory.EnumerateDirectories(@"mods/patches"))
             {
                 var name = Path.GetFileName(dir);
 
@@ -108,7 +108,7 @@ namespace p4gpc.inaba
                 {
                     patchPriorityList.Remove($@"mods/patches/{name}");
                     patchPriorityList.Add($@"mods/patches/{name}");
-                    //patchPriorityList.Insert(0,$@"mods\patches\{name}");
+                    //patchPriorityList.Insert(0,$@"mods/patches/{name}");
                 }
             }
 
