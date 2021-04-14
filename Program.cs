@@ -37,17 +37,6 @@ namespace p4gpc.inaba
         /// </summary>
         private IReloadedHooks _hooks;
 
-        private exePatch exePatcher;
-
-        // Extract PAKpak.exe
-        private void ExtractResource(string resource, string path)
-        {
-            Stream stream = GetType().Assembly.GetManifestResourceStream(resource);
-            byte[] bytes = new byte[(int)stream.Length];
-            stream.Read(bytes, 0, bytes.Length);
-            File.WriteAllBytes(path, bytes);
-        }
-
         /// <summary>
         /// Entry point for your mod.
         /// </summary>
@@ -70,7 +59,7 @@ namespace p4gpc.inaba
 
             if (Directory.Exists(patchPath))
             {
-                exePatcher = new exePatch(_logger, _configuration);
+                using var exePatcher = new exePatch(_logger, _configuration);
                 exePatcher.Patch();
             }
         }
@@ -126,14 +115,6 @@ namespace p4gpc.inaba
 
         /* Automatically called by the mod loader when the mod is about to be unloaded. */
         public Action Disposing { get; }
-
-        /* Contains the Types you would like to share with other mods.
-           If you do not want to share any types, please remove this method and the
-           IExports interface.
-        
-           Inter Mod Communication: https://github.com/Reloaded-Project/Reloaded-II/blob/master/Docs/InterModCommunication.md
-        */
-        public Type[] GetTypes() => new Type[0];
 
         /* This is a dummy for R2R (ReadyToRun) deployment.
            For more details see: https://github.com/Reloaded-Project/Reloaded-II/blob/master/Docs/ReadyToRun.md
