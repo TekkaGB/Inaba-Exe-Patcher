@@ -29,7 +29,7 @@ namespace p4gpc.inaba
             mProc = Process.GetCurrentProcess();
             mBaseAddr = mProc.MainModule.BaseAddress;
             mHnd = mProc.Handle;
-            mem = new ExternalMemory(mProc.Handle);
+            mem = new Memory(mProc.Handle);
         }
 
         private void singlePatch(string filePath)
