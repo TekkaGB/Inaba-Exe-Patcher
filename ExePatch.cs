@@ -11,7 +11,7 @@ using Reloaded.Memory.Sources;
 
 namespace p4gpc.inaba
 {
-    public class exePatch
+    public class exePatch : IDisposable
     {
         private readonly IMemory mem;
         private readonly ILogger mLogger;
@@ -19,7 +19,6 @@ namespace p4gpc.inaba
 
         private readonly Process mProc;
         private readonly IntPtr mBaseAddr;
-        private readonly IntPtr mHnd;
         private Scanner scanner;
 
         public exePatch(ILogger logger, Config config)
@@ -28,8 +27,8 @@ namespace p4gpc.inaba
             mConfig = config;
             mProc = Process.GetCurrentProcess();
             mBaseAddr = mProc.MainModule.BaseAddress;
-            mHnd = mProc.Handle;
-            mem = new ExternalMemory(mProc.Handle);
+            mem = new Memory();
+            scanner = new Scanner(mProc, mProc.MainModule);
         }
 
         private void singlePatch(string filePath)
@@ -86,8 +85,6 @@ namespace p4gpc.inaba
         
         public void Patch()
         {
-            scanner = new Scanner(mProc, mProc.MainModule);
-
             List<string> patchPriorityList = new List<string>();
             // Add main directory as last entry for least priority
             patchPriorityList.Add($@"mods/patches");
@@ -134,7 +131,13 @@ namespace p4gpc.inaba
                     singlePatch(f);
                 }
             }
-            return;
+        }
+
+        /// <inheritdoc />
+        public void Dispose()
+        {
+            mProc?.Dispose();
+            scanner?.Dispose();
         }
     }
 }
