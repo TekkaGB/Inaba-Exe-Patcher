@@ -36,7 +36,6 @@ namespace p4gpc.inaba
         ///      for documentation and samples. 
         /// </summary>
         private IReloadedHooks _hooks;
-        private exePatch _exePatcher;
 
         /// <summary>
         /// Entry point for your mod.
@@ -60,8 +59,8 @@ namespace p4gpc.inaba
 
             if (Directory.Exists(patchPath))
             {
-                _exePatcher = new exePatch(_logger, _configuration);
-                _exePatcher.Patch();
+                using var exePatcher = new exePatch(_logger, _configuration);
+                exePatcher.Patch();
             }
         }
 

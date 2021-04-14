@@ -11,7 +11,7 @@ using Reloaded.Memory.Sources;
 
 namespace p4gpc.inaba
 {
-    public class exePatch
+    public class exePatch : IDisposable
     {
         private readonly IMemory mem;
         private readonly ILogger mLogger;
@@ -132,6 +132,13 @@ namespace p4gpc.inaba
                     singlePatch(f);
                 }
             }
+        }
+
+        /// <inheritdoc />
+        public void Dispose()
+        {
+            mProc?.Dispose();
+            scanner?.Dispose();
         }
     }
 }
