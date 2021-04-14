@@ -28,6 +28,7 @@ namespace p4gpc.inaba
             mProc = Process.GetCurrentProcess();
             mBaseAddr = mProc.MainModule.BaseAddress;
             mem = new Memory();
+            scanner = new Scanner(mProc, mProc.MainModule);
         }
 
         private void singlePatch(string filePath)
@@ -84,8 +85,6 @@ namespace p4gpc.inaba
         
         public void Patch()
         {
-            scanner = new Scanner(mProc, mProc.MainModule);
-
             List<string> patchPriorityList = new List<string>();
             // Add main directory as last entry for least priority
             patchPriorityList.Add($@"mods/patches");
