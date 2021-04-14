@@ -108,7 +108,6 @@ namespace p4gpc.inaba
                 {
                     patchPriorityList.Remove($@"mods/patches/{name}");
                     patchPriorityList.Add($@"mods/patches/{name}");
-                    //patchPriorityList.Insert(0,$@"mods/patches/{name}");
                 }
             }
 
