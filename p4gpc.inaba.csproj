@@ -31,6 +31,9 @@
     <PackageReference Include="Reloaded.SharedLib.Hooks" Version="1.6.0" />
   </ItemGroup>
   <ItemGroup>
+    <None Update="inaba_overlay.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Preview.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
