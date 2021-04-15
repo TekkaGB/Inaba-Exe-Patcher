@@ -1,7 +1,7 @@
 # Project Output Paths
 $modOutputPath = "TempBuild"
-$solutionName = "p4gpc.aemulus.csproj"
-$publishName = "p4gpc.aemulus.zip"
+$solutionName = "p4gpc.inaba.csproj"
+$publishName = "p4gpc.inaba.zip"
 $publishDirectory = "Publish"
 
 [Environment]::CurrentDirectory = $PWD
