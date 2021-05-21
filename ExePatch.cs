@@ -11,7 +11,7 @@ using Reloaded.Memory.Sources;
 
 namespace p4gpc.inaba
 {
-    public class exePatch : IDisposable
+    public class ExePatch : IDisposable
     {
         private readonly IMemory mem;
         private readonly ILogger mLogger;
@@ -21,7 +21,7 @@ namespace p4gpc.inaba
         private readonly IntPtr mBaseAddr;
         private Scanner scanner;
 
-        public exePatch(ILogger logger, Config config)
+        public ExePatch(ILogger logger, Config config)
         {
             mLogger = logger;
             mConfig = config;
@@ -31,7 +31,7 @@ namespace p4gpc.inaba
             scanner = new Scanner(mProc, mProc.MainModule);
         }
 
-        private void singlePatch(string filePath)
+        private void SinglePatch(string filePath)
         {
             byte[] file;
             uint fileLen;
@@ -128,7 +128,7 @@ namespace p4gpc.inaba
                 mLogger.WriteLine($"[Inaba Exe Patcher] Found patches in {dir}");
                 foreach (string f in files)
                 {
-                    singlePatch(f);
+                    SinglePatch(f);
                 }
             }
         }

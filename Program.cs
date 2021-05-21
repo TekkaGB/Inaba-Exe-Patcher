@@ -59,7 +59,7 @@ namespace p4gpc.inaba
 
             if (Directory.Exists(patchPath))
             {
-                using var exePatcher = new exePatch(_logger, _configuration);
+                using var exePatcher = new ExePatch(_logger, _configuration);
                 exePatcher.Patch();
             }
         }
