@@ -12,6 +12,7 @@ using System.Text.RegularExpressions;
 using System.Text;
 using Reloaded.Hooks.Definitions;
 using Reloaded.Hooks.Definitions.Enums;
+using System.Drawing;
 
 namespace p4gpc.inaba
 {
@@ -149,6 +150,11 @@ namespace p4gpc.inaba
             foreach(var patch in patches)
             {
                 var result = scanner.FindPattern(patch.Pattern);
+                if(!result.Found)
+                {
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Couldn't find address for {patch.Name}, not applying it", Color.Red);
+                    continue;
+                }
                 AsmHookBehaviour? order = null;
                 if (patch.ExecutionOrder == "before")
                     order = AsmHookBehaviour.ExecuteFirst;
@@ -156,10 +162,17 @@ namespace p4gpc.inaba
                     order = AsmHookBehaviour.ExecuteAfter;
                 else if (patch.ExecutionOrder == "only")
                     order = AsmHookBehaviour.DoNotExecuteOriginal;
-                if(order != null)
-                    mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset), (AsmHookBehaviour)order).Activate();
-                else 
-                    mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset)).Activate();
+                try
+                {
+                    if(order != null)
+                        mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset), (AsmHookBehaviour)order).Activate();
+                    else 
+                        mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset)).Activate();
+                } catch (Exception ex)
+                {
+                    mLogger.WriteLine($"Error creating hook for {patch.Name}: {ex.Message}");
+                    continue;
+                }
                 mLogger.WriteLine($"[Inaba Exe Patcher] Applied patch {patch.Name} from {Path.GetFileName(filePath)}");
             }
         }
