@@ -196,6 +196,7 @@ namespace p4gpc.inaba
             string order = "";
             int offset = 0;
             Dictionary<string, IntPtr> variables = new();
+            Dictionary<string, string> constants = new();
 
             foreach (var rawLine in File.ReadLines(filePath))
             {
@@ -249,6 +250,21 @@ namespace p4gpc.inaba
                     continue;
                 }
 
+                // Search for a constant definition 
+
+                var constantMatch = Regex.Match(line, @"^\s*const\s+(\S+)\s*=\s*(.+)");
+                if (constantMatch.Success)
+                {
+                    string name = constantMatch.Groups[1].Value;
+                    if (constants.ContainsKey(name))
+                    {
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Constant {name} in {Path.GetFileName(filePath)} already exists, ignoring duplicate declaration of it");
+                        continue;
+                    }
+                    constants.Add(name, constantMatch.Groups[2].Value);
+                    continue;
+                }
+
                 // Don't try to add stuff if the patch hasn't actually started yet
                 if (!startPatch) continue;
 
@@ -284,23 +300,27 @@ namespace p4gpc.inaba
                 currentPatch.Insert(0, "use32");
                 patches.Add(new ExPatch(patchName, pattern, currentPatch.ToArray(), order, offset));
             }
-            FillInVariables(patches, variables);
+            FillInVariables(patches, variables, constants);
             return patches;
         }
 
         /// <summary>
-        /// Replaces any variable declarations in functions (such as {variableName}) with their actual addresses
+        /// Replaces any variable and constant declarations in functions (such as {variableName}) with their actual addresses
         /// </summary>
         /// <param name="patches">A list of patches to replace the variables in</param>
         /// <param name="variables">A Dictionary where the key is the variable name and the value is the variable address</param>
-        private void FillInVariables(List<ExPatch> patches, Dictionary<string, IntPtr> variables)
+        private void FillInVariables(List<ExPatch> patches, Dictionary<string, IntPtr> variables, Dictionary<string, string> constants)
         {
             if (variables.Count == 0)
                 return;
             foreach (var patch in patches)
                 for (int i = 0; i < patch.Function.Length; i++)
+                {
                     foreach (var variable in variables)
                         patch.Function[i] = patch.Function[i].Replace($"{{{variable.Key}}}", variable.Value.ToString());
+                    foreach (var constant in constants)
+                        patch.Function[i] = patch.Function[i].Replace($"{{{constant.Key}}}", constant.Value);
+                }
         }
 
         /// <summary>
