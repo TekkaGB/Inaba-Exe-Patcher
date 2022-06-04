@@ -320,6 +320,17 @@ namespace p4gpc.inaba
                         patch.Function[i] = patch.Function[i].Replace($"{{{variable.Key}}}", variable.Value.ToString());
                     foreach (var constant in constants)
                         patch.Function[i] = patch.Function[i].Replace($"{{{constant.Key}}}", constant.Value);
+                    patch.Function[i] = patch.Function[i].Replace("{pushCaller}", mHooks.Utilities.PushCdeclCallerSavedRegisters());
+                    patch.Function[i] = patch.Function[i].Replace("{popCaller}", mHooks.Utilities.PopCdeclCallerSavedRegisters());
+                    patch.Function[i] = patch.Function[i].Replace("{pushXmm}", Utils.PushXmm());
+                    patch.Function[i] = patch.Function[i].Replace("{popXmm}", Utils.PopXmm());
+                    var xmmMatch = Regex.Match(patch.Function[i], @"{pushXmm([0-9]+)}");
+                    if(xmmMatch.Success) 
+                        patch.Function[i] = patch.Function[i].Replace(xmmMatch.Groups[0].Value, Utils.PushXmm(int.Parse(xmmMatch.Groups[1].Value)));
+                    xmmMatch = Regex.Match(patch.Function[i], @"{popXmm([0-9]+)}");
+                    if (xmmMatch.Success)
+                        patch.Function[i] = patch.Function[i].Replace(xmmMatch.Groups[0].Value, Utils.PopXmm(int.Parse(xmmMatch.Groups[1].Value)));
+
                 }
         }
 
