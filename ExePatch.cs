@@ -79,7 +79,7 @@ namespace p4gpc.inaba
             }
 
             var result = scanner.FindPattern(BitConverter.ToString(fileHeader).Replace("-", " "));
-        
+
             if (result.Found)
             {
                 mem.SafeWriteRaw(mBaseAddr + result.Offset, fileContents);
@@ -88,7 +88,7 @@ namespace p4gpc.inaba
             else
                 mLogger.WriteLine($"[Inaba Exe Patcher] Couldn't find pattern to replace using {fileName}");
         }
-        
+
         public void Patch()
         {
             List<string> patchPriorityList = new List<string>();
@@ -121,7 +121,7 @@ namespace p4gpc.inaba
             foreach (string dir in patchPriorityList)
             {
                 string[] allFiles = Directory.GetFiles(dir, "*", SearchOption.TopDirectoryOnly);
-                    
+
                 string[] patches = allFiles.Where(s => Path.GetExtension(s).ToLower() == ".patch").ToArray();
                 string[] exPatches = allFiles.Where(s => Path.GetExtension(s).ToLower() == ".expatch").ToArray();
 
@@ -137,7 +137,7 @@ namespace p4gpc.inaba
                     SinglePatch(f);
                 }
 
-                foreach(string f in exPatches)
+                foreach (string f in exPatches)
                 {
                     SinglePatchEx(f);
                 }
@@ -147,10 +147,10 @@ namespace p4gpc.inaba
         private void SinglePatchEx(string filePath)
         {
             List<ExPatch> patches = ParseExPatch(filePath);
-            foreach(var patch in patches)
+            foreach (var patch in patches)
             {
                 var result = scanner.FindPattern(patch.Pattern);
-                if(!result.Found)
+                if (!result.Found)
                 {
                     mLogger.WriteLine($"[Inaba Exe Patcher] Couldn't find address for {patch.Name}, not applying it", Color.Red);
                     continue;
@@ -164,11 +164,12 @@ namespace p4gpc.inaba
                     order = AsmHookBehaviour.DoNotExecuteOriginal;
                 try
                 {
-                    if(order != null)
+                    if (order != null)
                         mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset + patch.Offset), (AsmHookBehaviour)order).Activate();
-                    else 
+                    else
                         mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset + patch.Offset)).Activate();
-                } catch (Exception ex)
+                }
+                catch (Exception ex)
                 {
                     mLogger.WriteLine($"Error creating hook for {patch.Name}: {ex.Message}");
                     continue;
@@ -191,11 +192,12 @@ namespace p4gpc.inaba
             string pattern = "";
             string order = "";
             int offset = 0;
-            Dictionary<string, IntPtr> variables = new(); 
+            Dictionary<string, IntPtr> variables = new();
 
-            foreach (var line in File.ReadLines(filePath))
+            foreach (var rawLine in File.ReadLines(filePath))
             {
                 // Search for the start of a new patch (and its name)
+                string line = RemoveComments(rawLine);
                 var patchMatch = Regex.Match(line, @"\[\s*patch\s*(?:\s+(.*?))?\s*\]");
                 if (patchMatch.Success)
                 {
@@ -206,12 +208,40 @@ namespace p4gpc.inaba
                     }
                     currentPatch.Clear();
                     if (patchMatch.Groups.Count > 1)
-                        patchName = RemoveComments(patchMatch.Groups[1].Value);
+                        patchName = patchMatch.Groups[1].Value;
                     else
                         patchName = "";
                     pattern = "";
                     order = "";
                     offset = 0;
+                    continue;
+                }
+
+                // Search for a variable definition
+                var variableMatch = Regex.Match(line, @"^\s*var\s+([^\s(]+)\(([0-9]+)\)?\s*(?:=\s*(.*))?");
+                if (variableMatch.Success)
+                {
+                    string name = variableMatch.Groups[1].Value;
+                    if (variables.ContainsKey(name))
+                    {
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Variable {name} in {Path.GetFileName(filePath)} already exists, ignoring duplicate declaration of it");
+                        continue;
+                    }
+                    int length = 4;
+                    if (variableMatch.Groups[2].Success)
+                        if (!int.TryParse(variableMatch.Groups[2].Value, out length))
+                            mLogger.WriteLine($"[Inaba Exe Patcher] Invalid variable length \"{variableMatch.Groups[2].Value}\" defaulting to length of 4 bytes");
+                    try
+                    {
+                        IntPtr variableAddress = mem.Allocate(length);
+                        if (variableMatch.Groups[3].Success)
+                            WriteDefaultValue(variableMatch.Groups[3].Value, variableAddress, name);
+                        variables.Add(name, variableAddress);
+                    }
+                    catch (Exception ex)
+                    {
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Unable to allocate variable {name}: {ex.Message}");
+                    }
                     continue;
                 }
 
@@ -222,7 +252,7 @@ namespace p4gpc.inaba
                 var patternMatch = Regex.Match(line, @"^\s*pattern\s*=\s*(.+)");
                 if (patternMatch.Success)
                 {
-                    pattern = RemoveComments(patternMatch.Groups[1].Value);
+                    pattern = patternMatch.Groups[1].Value;
                     continue;
                 }
 
@@ -230,40 +260,20 @@ namespace p4gpc.inaba
                 var orderMatch = Regex.Match(line, @"^\s*order\s*=\s*(.+)");
                 if (orderMatch.Success)
                 {
-                    order = RemoveComments(orderMatch.Groups[1].Value);
+                    order = orderMatch.Groups[1].Value;
                     continue;
                 }
 
                 var offsetMatch = Regex.Match(line, @"^\s*offset\s*=\s*([0-9]+)");
-                if(offsetMatch.Success)
+                if (offsetMatch.Success)
                 {
                     if (!int.TryParse(offsetMatch.Groups[1].Value, out offset))
                         mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse offset {offsetMatch.Groups[1].Value} as an int leaving offset as 0");
+                    continue;
                 }
-
-                // Search for a variable definition
-                var variableMatch = Regex.Match(line, @"^\s*var\s+(\S+)\s*(?:=\s*(\S+))?");
-                if (variableMatch.Success)
-                {
-                    string name = variableMatch.Groups[1].Value;
-                    if(variables.ContainsKey(name))
-                    {
-                        mLogger.WriteLine($"[Inaba Exe Patcher] Variable {name} in {Path.GetFileName(filePath)} already exists, ignoring duplicate declaration of it");
-                        continue;
-                    }
-                    int length = 4;
-                    if (variableMatch.Groups[2].Success)
-                        if (!int.TryParse(variableMatch.Groups[2].Value, out length))
-                            mLogger.WriteLine($"[Inaba Exe Patcher] Invalid variable length \"{variableMatch.Groups[2].Value}\" defaulting to length of 4 bytes");
-                    IntPtr variableAddress = mem.Allocate(length);
-                    if(variableMatch.Groups[3].Success)
-                        WriteDefaultValue(variableMatch.Groups[3].Value, variableAddress, name);
-                    variables.Add(name, variableAddress);
-                }
-                
 
                 // Add the line as a part of the patch's function
-                currentPatch.Add(RemoveComments(line));
+                currentPatch.Add(line);
             }
             if (currentPatch.Count > 0)
             {
@@ -282,9 +292,9 @@ namespace p4gpc.inaba
         {
             if (variables.Count == 0)
                 return;
-            foreach(var patch in patches)
-                for(int i = 0; i < patch.Function.Length; i++)
-                    foreach(var variable in variables)
+            foreach (var patch in patches)
+                for (int i = 0; i < patch.Function.Length; i++)
+                    foreach (var variable in variables)
                         patch.Function[i] = patch.Function[i].Replace($"{{{variable.Key}}}", variable.Value.ToString());
         }
 
@@ -314,7 +324,7 @@ namespace p4gpc.inaba
             else
             {
                 var stringValueMatch = Regex.Match(value, "\"(.*)\"");
-                if(!stringValueMatch.Success)
+                if (!stringValueMatch.Success)
                 {
                     mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse {value} as an int, double, float or string not writing a default value for {name}");
                     return;
@@ -323,7 +333,7 @@ namespace p4gpc.inaba
                 mem.Write(address, stringValue);
                 mLogger.WriteLine($"[Inaba Exe Patcher] Wrote string \"{stringValue}\" as default value of {name}");
             }
-        } 
+        }
 
         /// <summary>
         /// Searches for "//" in a string and removes it and anything after it
