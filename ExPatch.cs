@@ -22,13 +22,18 @@ namespace p4gpc.inaba
         /// When to execute the function (first, after, or only)
         /// </summary>
         public string ExecutionOrder { get; set; }
+        /// <summary>
+        /// The offset to add to the address of the hook
+        /// </summary>
+        public int Offset { get; set; }
 
-        public ExPatch(string name, string pattern, string[] function, string executionOrder)
+        public ExPatch(string name, string pattern, string[] function, string executionOrder, int offset)
         {
             Name = name;
             Pattern = pattern;
             Function = function;
             ExecutionOrder = executionOrder;
+            Offset = offset;
         }
     }
 }

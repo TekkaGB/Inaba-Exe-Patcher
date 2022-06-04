@@ -165,9 +165,9 @@ namespace p4gpc.inaba
                 try
                 {
                     if(order != null)
-                        mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset), (AsmHookBehaviour)order).Activate();
+                        mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset + patch.Offset), (AsmHookBehaviour)order).Activate();
                     else 
-                        mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset)).Activate();
+                        mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset + patch.Offset)).Activate();
                 } catch (Exception ex)
                 {
                     mLogger.WriteLine($"Error creating hook for {patch.Name}: {ex.Message}");
@@ -190,6 +190,7 @@ namespace p4gpc.inaba
             string patchName = "";
             string pattern = "";
             string order = "";
+            int offset = 0;
             Dictionary<string, IntPtr> variables = new(); 
 
             foreach (var line in File.ReadLines(filePath))
@@ -201,7 +202,7 @@ namespace p4gpc.inaba
                     startPatch = true;
                     if (currentPatch.Count > 0)
                     {
-                        patches.Add(new ExPatch(patchName, pattern, currentPatch.ToArray(), order));
+                        patches.Add(new ExPatch(patchName, pattern, currentPatch.ToArray(), order, offset));
                     }
                     currentPatch.Clear();
                     if (patchMatch.Groups.Count > 1)
@@ -210,6 +211,7 @@ namespace p4gpc.inaba
                         patchName = "";
                     pattern = "";
                     order = "";
+                    offset = 0;
                     continue;
                 }
 
@@ -230,6 +232,13 @@ namespace p4gpc.inaba
                 {
                     order = RemoveComments(orderMatch.Groups[1].Value);
                     continue;
+                }
+
+                var offsetMatch = Regex.Match(line, @"^\s*offset\s*=\s*([0-9]+)");
+                if(offsetMatch.Success)
+                {
+                    if (!int.TryParse(offsetMatch.Groups[1].Value, out offset))
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse offset {offsetMatch.Groups[1].Value} as an int leaving offset as 0");
                 }
 
                 // Search for a variable definition
@@ -258,7 +267,7 @@ namespace p4gpc.inaba
             }
             if (currentPatch.Count > 0)
             {
-                patches.Add(new ExPatch(patchName, pattern, currentPatch.ToArray(), order));
+                patches.Add(new ExPatch(patchName, pattern, currentPatch.ToArray(), order, offset));
             }
             FillInVariables(patches, variables);
             return patches;
