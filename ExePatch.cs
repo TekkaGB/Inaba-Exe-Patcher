@@ -171,7 +171,10 @@ namespace p4gpc.inaba
                 }
                 catch (Exception ex)
                 {
-                    mLogger.WriteLine($"Error creating hook for {patch.Name}: {ex.Message}");
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Error creating hook for {patch.Name}: {ex.Message}");
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Function dump:");
+                    foreach (var line in patch.Function)
+                        mLogger.WriteLine(line);
                     continue;
                 }
                 mLogger.WriteLine($"[Inaba Exe Patcher] Applied patch {patch.Name} from {Path.GetFileName(filePath)}");
