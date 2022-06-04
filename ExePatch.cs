@@ -190,6 +190,7 @@ namespace p4gpc.inaba
             string patchName = "";
             string pattern = "";
             string order = "";
+            Dictionary<string, IntPtr> variables = new(); 
 
             foreach (var line in File.ReadLines(filePath))
             {
@@ -216,7 +217,7 @@ namespace p4gpc.inaba
                 if (!startPatch) continue;
 
                 // Search for a patten to scan for
-                var patternMatch = Regex.Match(line, @"pattern\s*=\s*(.+)");
+                var patternMatch = Regex.Match(line, @"^\s*pattern\s*=\s*(.+)");
                 if (patternMatch.Success)
                 {
                     pattern = RemoveComments(patternMatch.Groups[1].Value);
@@ -224,12 +225,33 @@ namespace p4gpc.inaba
                 }
 
                 // Search for an order to execute the hook in
-                var orderMatch = Regex.Match(line, @"\s*order\s*=\s*(.+)");
+                var orderMatch = Regex.Match(line, @"^\s*order\s*=\s*(.+)");
                 if (orderMatch.Success)
                 {
                     order = RemoveComments(orderMatch.Groups[1].Value);
                     continue;
                 }
+
+                // Search for a variable definition
+                var variableMatch = Regex.Match(line, @"^\s*var\s+(\S+)\s*(?:=\s*(\S+))?");
+                if (variableMatch.Success)
+                {
+                    string name = variableMatch.Groups[1].Value;
+                    if(variables.ContainsKey(name))
+                    {
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Variable {name} in {Path.GetFileName(filePath)} already exists, ignoring duplicate declaration of it");
+                        continue;
+                    }
+                    int length = 4;
+                    if (variableMatch.Groups[2].Success)
+                        if (!int.TryParse(variableMatch.Groups[2].Value, out length))
+                            mLogger.WriteLine($"[Inaba Exe Patcher] Invalid variable length \"{variableMatch.Groups[2].Value}\" defaulting to length of 4 bytes");
+                    IntPtr variableAddress = mem.Allocate(length);
+                    if(variableMatch.Groups[3].Success)
+                        WriteDefaultValue(variableMatch.Groups[3].Value, variableAddress, name);
+                    variables.Add(name, variableAddress);
+                }
+                
 
                 // Add the line as a part of the patch's function
                 currentPatch.Add(RemoveComments(line));
@@ -238,8 +260,61 @@ namespace p4gpc.inaba
             {
                 patches.Add(new ExPatch(patchName, pattern, currentPatch.ToArray(), order));
             }
+            FillInVariables(patches, variables);
             return patches;
         }
+
+        /// <summary>
+        /// Replaces any variable declarations in functions (such as {variableName}) with their actual addresses
+        /// </summary>
+        /// <param name="patches">A list of patches to replace the variables in</param>
+        /// <param name="variables">A Dictionary where the key is the variable name and the value is the variable address</param>
+        private void FillInVariables(List<ExPatch> patches, Dictionary<string, IntPtr> variables)
+        {
+            if (variables.Count == 0)
+                return;
+            foreach(var patch in patches)
+                for(int i = 0; i < patch.Function.Length; i++)
+                    foreach(var variable in variables)
+                        patch.Function[i] = patch.Function[i].Replace($"{{{variable.Key}}}", variable.Value.ToString());
+        }
+
+        /// <summary>
+        /// Writes the default value to an address based on a string
+        /// </summary>
+        /// <param name="value">The string to interpret and write</param>
+        /// <param name="address">The address to write to</param>
+        /// <param name="name">The name of the variable this is for</param>
+        private void WriteDefaultValue(string value, IntPtr address, string name)
+        {
+            if (int.TryParse(value, out int intValue))
+            {
+                mem.Write(address, intValue);
+                mLogger.WriteLine($"[Inaba Exe Patcher] Wrote int {intValue} as default value of {name}");
+            }
+            else if (Regex.IsMatch(value, @"[0-9]+f") && float.TryParse(value, out float floatValue))
+            {
+                mem.Write(address, floatValue);
+                mLogger.WriteLine($"[Inaba Exe Patcher] Wrote float {floatValue} as default value of {name}");
+            }
+            else if (double.TryParse(value, out double doubleValue))
+            {
+                mem.Write(address, doubleValue);
+                mLogger.WriteLine($"[Inaba Exe Patcher] Wrote double {doubleValue} as default value of {name}");
+            }
+            else
+            {
+                var stringValueMatch = Regex.Match(value, "\"(.*)\"");
+                if(!stringValueMatch.Success)
+                {
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse {value} as an int, double, float or string not writing a default value for {name}");
+                    return;
+                }
+                string stringValue = stringValueMatch.Groups[1].Value;
+                mem.Write(address, stringValue);
+                mLogger.WriteLine($"[Inaba Exe Patcher] Wrote string \"{stringValue}\" as default value of {name}");
+            }
+        } 
 
         /// <summary>
         /// Searches for "//" in a string and removes it and anything after it
