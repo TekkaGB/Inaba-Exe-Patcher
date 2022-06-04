@@ -207,6 +207,7 @@ namespace p4gpc.inaba
                     startPatch = true;
                     if (currentPatch.Count > 0)
                     {
+                        currentPatch.Insert(0, "use32");
                         patches.Add(new ExPatch(patchName, pattern, currentPatch.ToArray(), order, offset));
                     }
                     currentPatch.Clear();
@@ -280,6 +281,7 @@ namespace p4gpc.inaba
             }
             if (currentPatch.Count > 0)
             {
+                currentPatch.Insert(0, "use32");
                 patches.Add(new ExPatch(patchName, pattern, currentPatch.ToArray(), order, offset));
             }
             FillInVariables(patches, variables);
