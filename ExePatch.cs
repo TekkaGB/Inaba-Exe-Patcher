@@ -272,7 +272,7 @@ namespace p4gpc.inaba
                 var patternMatch = Regex.Match(line, @"^\s*pattern\s*=\s*(.+)");
                 if (patternMatch.Success)
                 {
-                    pattern = patternMatch.Groups[1].Value;
+                    pattern = patternMatch.Groups[1].Value.TrimEnd();
                     continue;
                 }
 
