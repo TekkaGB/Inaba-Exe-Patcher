@@ -15,12 +15,12 @@ namespace p4gpc.inaba.Configuration
             Need more config files/classes? See Configuration.cs
         */
 
-        [DisplayName("Debug")]
-        [Description("Enable to print more info grabbed from patch files.")]
-        public bool Debug { get; set; } = false;
-
         [DisplayName("Patch Folder Priority")]
         [Description("List of patch folders that should be loaded in order (first one takes priority)")]
         public List<string> PatchFolderPriority { get; set; } = new List<string>();
+
+        [DisplayName("Debug")]
+        [Description("Enable to print more info grabbed from patch files.")]
+        public bool Debug { get; set; } = false;
     }
 }
