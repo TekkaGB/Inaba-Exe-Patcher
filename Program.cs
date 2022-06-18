@@ -5,6 +5,7 @@ using Reloaded.Mod.Interfaces.Internal;
 using p4gpc.inaba.Configuration;
 using p4gpc.inaba.Configuration.Implementation;
 using System.IO;
+using Reloaded.Memory.SigScan.ReloadedII.Interfaces;
 
 namespace p4gpc.inaba
 {
@@ -45,6 +46,7 @@ namespace p4gpc.inaba
             _modLoader = (IModLoader)loader;
             _logger = (ILogger)_modLoader.GetLogger();
             _modLoader.GetController<IReloadedHooks>().TryGetTarget(out _hooks);
+            _modLoader.GetController<IStartupScanner>().TryGetTarget(out var startupScanner);
 
             // Your config file is in Config.json.
             // Need a different name, format or more configurations? Modify the `Configurator`.
@@ -55,11 +57,11 @@ namespace p4gpc.inaba
 
             /* Your mod code starts here. */
 
-            string patchPath = "mods/patches";
+            string patchPath = $"mods{Path.DirectorySeparatorChar}patches";
 
             if (Directory.Exists(patchPath))
             {
-                using var exePatcher = new ExePatch(_logger, _configuration);
+                using var exePatcher = new ExePatch(_logger, startupScanner, _configuration);
                 exePatcher.Patch();
             }
         }
