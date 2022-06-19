@@ -10,7 +10,7 @@
   "ModR2RManagedDll64": "x64/p4gpc.inaba.dll",
   "ModNativeDll32": "",
   "ModNativeDll64": "",
-  "ModDependencies": [ "reloaded.sharedlib.hooks", "reloaded.universal.steamhook" ],
+  "ModDependencies": [ "reloaded.sharedlib.hooks", "Reloaded.Memory.SigScan.ReloadedII" ],
   "OptionalDependencies": null,
   "SupportedAppId": [ "p4g.exe" ]
 }
