@@ -26,14 +26,19 @@ namespace p4gpc.inaba
         /// The offset to add to the address of the hook
         /// </summary>
         public int Offset { get; set; }
+        /// <summary>
+        /// If true this is a replacement instead of a code patch
+        /// </summary>
+        public bool IsReplacement { get; set; }
 
-        public ExPatch(string name, string pattern, string[] function, string executionOrder, int offset)
+        public ExPatch(string name, string pattern, string[] function, string executionOrder, int offset, bool isReplacement)
         {
             Name = name;
             Pattern = pattern;
             Function = function;
             ExecutionOrder = executionOrder;
             Offset = offset;
+            IsReplacement = isReplacement;
         }
     }
 }

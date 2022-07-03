@@ -155,30 +155,53 @@ namespace p4gpc.inaba
                     mLogger.WriteLine($"[Inaba Exe Patcher] Couldn't find address for {patch.Name}, not applying it", Color.Red);
                     continue;
                 }
-                AsmHookBehaviour? order = null;
-                if (patch.ExecutionOrder == "before")
-                    order = AsmHookBehaviour.ExecuteFirst;
-                else if (patch.ExecutionOrder == "after")
-                    order = AsmHookBehaviour.ExecuteAfter;
-                else if (patch.ExecutionOrder == "only")
-                    order = AsmHookBehaviour.DoNotExecuteOriginal;
-                try
-                {
-                    if (order != null)
-                        mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset + patch.Offset), (AsmHookBehaviour)order).Activate();
-                    else
-                        mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset + patch.Offset)).Activate();
-                }
-                catch (Exception ex)
-                {
-                    mLogger.WriteLine($"[Inaba Exe Patcher] Error creating hook for {patch.Name}: {ex.Message}");
-                    mLogger.WriteLine($"[Inaba Exe Patcher] Function dump:");
-                    foreach (var line in patch.Function)
-                        mLogger.WriteLine(line);
-                    continue;
-                }
-                mLogger.WriteLine($"[Inaba Exe Patcher] Applied patch {patch.Name} from {Path.GetFileName(filePath)}");
+
+                if(patch.IsReplacement)
+                    ReplacementPatch(patch, result, filePath);
+                else
+                    FunctionPatch(patch, result, filePath);
             }
+        }
+
+        private void FunctionPatch(ExPatch patch, PatternScanResult result, string filePath)
+        {
+            AsmHookBehaviour? order = null;
+            if (patch.ExecutionOrder == "before")
+                order = AsmHookBehaviour.ExecuteFirst;
+            else if (patch.ExecutionOrder == "after")
+                order = AsmHookBehaviour.ExecuteAfter;
+            else if (patch.ExecutionOrder == "only")
+                order = AsmHookBehaviour.DoNotExecuteOriginal;
+            try
+            {
+                if (order != null)
+                    mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset + patch.Offset), (AsmHookBehaviour)order).Activate();
+                else
+                    mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset + patch.Offset)).Activate();
+            }
+            catch (Exception ex)
+            {
+                mLogger.WriteLine($"[Inaba Exe Patcher] Error creating hook for {patch.Name}: {ex.Message}");
+                mLogger.WriteLine($"[Inaba Exe Patcher] Function dump:");
+                foreach (var line in patch.Function)
+                    mLogger.WriteLine(line);
+                return;
+            }
+            mLogger.WriteLine($"[Inaba Exe Patcher] Applied patch {patch.Name} from {Path.GetFileName(filePath)}");
+        }
+
+        private void ReplacementPatch(ExPatch patch, PatternScanResult result, string filePath)
+        {
+            if(patch.Function.Count() == 0)
+            {
+                mLogger.WriteLine($"[Inaba Exe Patcher] No replacement value specified for {patch.Name} replacement, skipping it");
+                return;
+            }
+            string replacement = patch.Function.Last();
+            if (patch.Function.Count() > 1)
+                mLogger.WriteLine($"[Inaba Exe Patcher] Multiple replacement values specified for {patch.Name}, using last defined one ({replacement})");
+            WriteValue(replacement, mBaseAddr + result.Offset + patch.Offset, patch.Name, patch.Pattern.Replace(" ", "").Length/2);
+            mLogger.WriteLine($"[Inaba Exe Patcher] Applied replacement {patch.Name} from {Path.GetFileName(filePath)}");
         }
 
         /// <summary>
@@ -190,6 +213,7 @@ namespace p4gpc.inaba
         {
             List<ExPatch> patches = new List<ExPatch>();
             bool startPatch = false;
+            bool startReplacement = false;
             List<string> currentPatch = new List<string>();
             string patchName = "";
             string pattern = "";
@@ -205,20 +229,27 @@ namespace p4gpc.inaba
                 var patchMatch = Regex.Match(line, @"\[\s*patch\s*(?:\s+(.*?))?\s*\]");
                 if (patchMatch.Success)
                 {
+                    startReplacement = false;
                     startPatch = true;
-                    if (currentPatch.Count > 0)
-                    {
-                        currentPatch.Insert(0, "use32");
-                        patches.Add(new ExPatch(patchName, pattern, currentPatch.ToArray(), order, offset));
-                    }
-                    currentPatch.Clear();
+                    SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, false);
                     if (patchMatch.Groups.Count > 1)
                         patchName = patchMatch.Groups[1].Value;
                     else
                         patchName = "";
-                    pattern = "";
-                    order = "";
-                    offset = 0;
+                    continue;
+                }
+
+                // Search for the start of a new replacement
+                var replacementMatch = Regex.Match(line, @"\[\s*replacement\s*(?:\s+(.*?))?\s*\]");
+                if(replacementMatch.Success)
+                {
+                    startReplacement = true;
+                    startPatch = false;
+                    SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, true);
+                    if (replacementMatch.Groups.Count > 1)
+                        patchName = replacementMatch.Groups[1].Value;
+                    else
+                        patchName = "";
                     continue;
                 }
 
@@ -240,7 +271,7 @@ namespace p4gpc.inaba
                     {
                         IntPtr variableAddress = mem.Allocate(length);
                         if (variableMatch.Groups[3].Success)
-                            WriteDefaultValue(variableMatch.Groups[3].Value, variableAddress, name);
+                            WriteValue(variableMatch.Groups[3].Value, variableAddress, name, 0);
                         variables.Add(name, variableAddress);
                     }
                     catch (Exception ex)
@@ -251,7 +282,6 @@ namespace p4gpc.inaba
                 }
 
                 // Search for a constant definition 
-
                 var constantMatch = Regex.Match(line, @"^\s*const\s+(\S+)\s*=\s*(.+)");
                 if (constantMatch.Success)
                 {
@@ -266,7 +296,7 @@ namespace p4gpc.inaba
                 }
 
                 // Don't try to add stuff if the patch hasn't actually started yet
-                if (!startPatch) continue;
+                if (!startPatch && !startReplacement) continue;
 
                 // Search for a patten to scan for
                 var patternMatch = Regex.Match(line, @"^\s*pattern\s*=\s*(.+)");
@@ -284,6 +314,7 @@ namespace p4gpc.inaba
                     continue;
                 }
 
+                // Search for an offset to make the patch/replacement on
                 var offsetMatch = Regex.Match(line, @"^\s*offset\s*=\s*([0-9]+)");
                 if (offsetMatch.Success)
                 {
@@ -292,16 +323,72 @@ namespace p4gpc.inaba
                     continue;
                 }
 
+                // Search for a literal to search for
+                var searchMatch  = Regex.Match(line, @"^\s*search\s*=\s*(.+)");
+                if(searchMatch.Success)
+                {
+                    string value = searchMatch.Groups[1].Value;
+                    if (int.TryParse(value, out int intValue))
+                    {
+                        var bytes = BitConverter.GetBytes(intValue);
+                        pattern = BitConverter.ToString(bytes).Replace("-", " ");
+                    }
+                    else if (Regex.IsMatch(value, @"[0-9]+f") && float.TryParse(value, out float floatValue))
+                    {
+                        var bytes = BitConverter.GetBytes(floatValue);
+                        pattern = BitConverter.ToString(bytes).Replace("-", " ");
+                    }
+                    else if (double.TryParse(value, out double doubleValue))
+                    {
+                        var bytes = BitConverter.GetBytes(doubleValue);
+                        pattern = BitConverter.ToString(bytes).Replace("-", " ");
+                    }
+                    else
+                    {
+                        var stringValueMatch = Regex.Match(value, "\"(.*)\"");
+                        if (!stringValueMatch.Success)
+                        {
+                            mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse {value} as an int, double, float or string not creating search pattern");
+                            continue;
+                        }
+                        string stringValue = stringValueMatch.Groups[1].Value;
+                        var bytes = Encoding.ASCII.GetBytes(stringValue);
+                        pattern = BitConverter.ToString(bytes).Replace("-", " ");
+                    }
+                    continue;
+                }
+
+                // Search for a replacement (the actual value to set the thing to)
+                var replaceValueMatch = Regex.Match(line, @"^\s*replacement\s*=\s*(.+)");
+                if(replaceValueMatch.Success)
+                {
+                    var value = replaceValueMatch.Groups[1].Value;
+                    currentPatch.Add(value);
+                    continue;
+                }
+
                 // Add the line as a part of the patch's function
-                currentPatch.Add(line);
+                if (startPatch)
+                    currentPatch.Add(line);
             }
-            if (currentPatch.Count > 0)
-            {
-                currentPatch.Insert(0, "use32");
-                patches.Add(new ExPatch(patchName, pattern, currentPatch.ToArray(), order, offset));
-            }
+            if(startReplacement || startPatch)
+                SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, startReplacement);
             FillInVariables(patches, variables, constants);
             return patches;
+        }
+
+        private void SaveCurrentPatch(List<string> currentPatch, List<ExPatch> patches, string patchName, ref string pattern, ref string order, ref int offset, bool isReplacement)
+        {
+            if (currentPatch.Count > 0)
+            {
+                if(!isReplacement)
+                    currentPatch.Insert(0, "use32");
+                patches.Add(new ExPatch(patchName, pattern, currentPatch.ToArray(), order, offset, isReplacement));
+            }
+            currentPatch.Clear();
+            pattern = "";
+            order = "";
+            offset = 0;
         }
 
         /// <summary>
@@ -335,39 +422,48 @@ namespace p4gpc.inaba
         }
 
         /// <summary>
-        /// Writes the default value to an address based on a string
+        /// Writes the value to an address based on a string attempting to parse the string to an int, float or double, defaulting to writing it as a string if these fail
         /// </summary>
         /// <param name="value">The string to interpret and write</param>
         /// <param name="address">The address to write to</param>
         /// <param name="name">The name of the variable this is for</param>
-        private void WriteDefaultValue(string value, IntPtr address, string name)
+        /// <param name="stringLength">The length of the string that should be written, if <paramref name="value"/> is shorter than this it will be padded with null characters. This has no effect if <paramref name="value"/> is not written as a string</param>
+        private void WriteValue(string value, IntPtr address, string name, int stringLength)
         {
             if (int.TryParse(value, out int intValue))
             {
-                mem.Write(address, intValue);
-                mLogger.WriteLine($"[Inaba Exe Patcher] Wrote int {intValue} as default value of {name}");
+                mem.SafeWrite(address, intValue);
+                mLogger.WriteLine($"[Inaba Exe Patcher] Wrote int {intValue} as value of {name} at 0x{address:X}");
             }
             else if (Regex.IsMatch(value, @"[0-9]+f") && float.TryParse(value, out float floatValue))
             {
-                mem.Write(address, floatValue);
-                mLogger.WriteLine($"[Inaba Exe Patcher] Wrote float {floatValue} as default value of {name}");
+                mem.SafeWrite(address, floatValue);
+                mLogger.WriteLine($"[Inaba Exe Patcher] Wrote float {floatValue} as value of {name} at 0x{address:X}");
             }
             else if (double.TryParse(value, out double doubleValue))
             {
-                mem.Write(address, doubleValue);
-                mLogger.WriteLine($"[Inaba Exe Patcher] Wrote double {doubleValue} as default value of {name}");
+                mem.SafeWrite(address, doubleValue);
+                mLogger.WriteLine($"[Inaba Exe Patcher] Wrote double {doubleValue} as value of {name} at 0x{address:X}");
             }
             else
             {
                 var stringValueMatch = Regex.Match(value, "\"(.*)\"");
                 if (!stringValueMatch.Success)
                 {
-                    mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse {value} as an int, double, float or string not writing a default value for {name}");
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse {value} as an int, double, float or string not writing a value for {name}");
                     return;
                 }
                 string stringValue = stringValueMatch.Groups[1].Value;
-                mem.Write(address, stringValue);
-                mLogger.WriteLine($"[Inaba Exe Patcher] Wrote string \"{stringValue}\" as default value of {name}");
+                var stringBytes = Encoding.ASCII.GetBytes(stringValue);
+                if(stringBytes.Length < stringLength)
+                {
+                    List<byte> byteList = stringBytes.ToList();
+                    while(byteList.Count < stringLength)
+                        byteList.Add(0);
+                    stringBytes = byteList.ToArray();
+                }
+                mem.SafeWrite(address, stringBytes);
+                mLogger.WriteLine($"[Inaba Exe Patcher] Wrote string \"{stringValue}\" as value of {name} at 0x{address:X}");
             }
         }
 
