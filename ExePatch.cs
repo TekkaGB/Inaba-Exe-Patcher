@@ -200,7 +200,10 @@ namespace p4gpc.inaba
             string replacement = patch.Function.Last();
             if (patch.Function.Count() > 1)
                 mLogger.WriteLine($"[Inaba Exe Patcher] Multiple replacement values specified for {patch.Name}, using last defined one ({replacement})");
-            WriteValue(replacement, mBaseAddr + result.Offset + patch.Offset, patch.Name, patch.Pattern.Replace(" ", "").Length/2);
+            int replacementLength = 0;
+            if (patch.PadNull)
+                replacementLength = patch.Pattern.Replace(" ", "").Length / 2;
+            WriteValue(replacement, mBaseAddr + result.Offset + patch.Offset, patch.Name, replacementLength);
             mLogger.WriteLine($"[Inaba Exe Patcher] Applied replacement {patch.Name} from {Path.GetFileName(filePath)}");
         }
 
@@ -219,6 +222,7 @@ namespace p4gpc.inaba
             string pattern = "";
             string order = "";
             int offset = 0;
+            bool padNull = true;
             Dictionary<string, IntPtr> variables = new();
             Dictionary<string, string> constants = new();
 
@@ -231,7 +235,7 @@ namespace p4gpc.inaba
                 {
                     startReplacement = false;
                     startPatch = true;
-                    SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, false);
+                    SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, ref padNull, false);
                     if (patchMatch.Groups.Count > 1)
                         patchName = patchMatch.Groups[1].Value;
                     else
@@ -245,7 +249,7 @@ namespace p4gpc.inaba
                 {
                     startReplacement = true;
                     startPatch = false;
-                    SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, true);
+                    SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, ref padNull, true);
                     if (replacementMatch.Groups.Count > 1)
                         patchName = replacementMatch.Groups[1].Value;
                     else
@@ -367,28 +371,37 @@ namespace p4gpc.inaba
                     continue;
                 }
 
+                var padMatch = Regex.Match(line, @"^\s*padNull\s*=\s*(.+)");
+                if(padMatch.Success)
+                {
+                    string value = padMatch.Groups[1].Value;
+                    if (!bool.TryParse(value, out padNull))
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse {value} to a boolean value (true or false) leaving padNull unchanged");
+                }
+
                 // Add the line as a part of the patch's function
                 if (startPatch)
                     currentPatch.Add(line);
             }
             if(startReplacement || startPatch)
-                SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, startReplacement);
+                SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, ref padNull, startReplacement);
             FillInVariables(patches, variables, constants);
             return patches;
         }
 
-        private void SaveCurrentPatch(List<string> currentPatch, List<ExPatch> patches, string patchName, ref string pattern, ref string order, ref int offset, bool isReplacement)
+        private void SaveCurrentPatch(List<string> currentPatch, List<ExPatch> patches, string patchName, ref string pattern, ref string order, ref int offset, ref bool padNull, bool isReplacement)
         {
             if (currentPatch.Count > 0)
             {
                 if(!isReplacement)
                     currentPatch.Insert(0, "use32");
-                patches.Add(new ExPatch(patchName, pattern, currentPatch.ToArray(), order, offset, isReplacement));
+                patches.Add(new ExPatch(patchName, pattern, currentPatch.ToArray(), order, offset, isReplacement, padNull));
             }
             currentPatch.Clear();
             pattern = "";
             order = "";
             offset = 0;
+            padNull = true;
         }
 
         /// <summary>

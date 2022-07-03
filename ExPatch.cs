@@ -30,8 +30,12 @@ namespace p4gpc.inaba
         /// If true this is a replacement instead of a code patch
         /// </summary>
         public bool IsReplacement { get; set; }
+        /// <summary>
+        /// If true when replacing values with strings the value will be padded with null characters up to the length of the search pattern
+        /// </summary>
+        public bool PadNull { get; set; }
 
-        public ExPatch(string name, string pattern, string[] function, string executionOrder, int offset, bool isReplacement)
+        public ExPatch(string name, string pattern, string[] function, string executionOrder, int offset, bool isReplacement, bool padNull)
         {
             Name = name;
             Pattern = pattern;
@@ -39,6 +43,7 @@ namespace p4gpc.inaba
             ExecutionOrder = executionOrder;
             Offset = offset;
             IsReplacement = isReplacement;
+            PadNull = padNull;
         }
     }
 }
