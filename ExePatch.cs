@@ -1,18 +1,18 @@
 ﻿using System;
 using System.Diagnostics;
-using Reloaded.Memory.Sigscan;
-using Reloaded.Memory.Sigscan.Structs;
 using Reloaded.Mod.Interfaces;
 using System.IO;
 using System.Linq;
 using p4gpc.inaba.Configuration;
 using System.Collections.Generic;
 using Reloaded.Memory.Sources;
+using Reloaded.Memory.SigScan.ReloadedII.Interfaces;
 using System.Text.RegularExpressions;
 using System.Text;
 using Reloaded.Hooks.Definitions;
 using Reloaded.Hooks.Definitions.Enums;
 using System.Drawing;
+using Reloaded.Memory.Sigscan.Definitions.Structs;
 
 namespace p4gpc.inaba
 {
@@ -20,22 +20,22 @@ namespace p4gpc.inaba
     {
         private readonly IMemory mem;
         private readonly ILogger mLogger;
+        private readonly IStartupScanner mStartupScanner;
         private readonly Config mConfig;
 
         private readonly Process mProc;
         private readonly IntPtr mBaseAddr;
-        private Scanner scanner;
         private IReloadedHooks mHooks;
 
-        public ExePatch(ILogger logger, Config config, IReloadedHooks hooks)
+        public ExePatch(ILogger logger, IStartupScanner startupScanner, Config config, IReloadedHooks hooks)
         {
             mLogger = logger;
             mConfig = config;
+            mStartupScanner = startupScanner;
             mHooks = hooks;
             mProc = Process.GetCurrentProcess();
             mBaseAddr = mProc.MainModule.BaseAddress;
             mem = new Memory();
-            scanner = new Scanner(mProc, mProc.MainModule);
         }
 
         private void SinglePatch(string filePath)
@@ -77,16 +77,18 @@ namespace p4gpc.inaba
                 mLogger.WriteLine($"[Inaba Exe Patcher] (Debug) Search Pattern (in hex) = {BitConverter.ToString(fileHeader).Replace("-", " ")}");
                 mLogger.WriteLine($"[Inaba Exe Patcher] (Debug) Replacement Content (in hex) = {BitConverter.ToString(fileContents).Replace("-", " ")}");
             }
-
-            var result = scanner.FindPattern(BitConverter.ToString(fileHeader).Replace("-", " "));
-
-            if (result.Found)
-            {
-                mem.SafeWriteRaw(mBaseAddr + result.Offset, fileContents);
-                mLogger.WriteLine($"[Inaba Exe Patcher] Successfully found and overwrote pattern in {fileName}");
-            }
-            else
-                mLogger.WriteLine($"[Inaba Exe Patcher] Couldn't find pattern to replace using {fileName}");
+            var pattern = BitConverter.ToString(fileHeader).Replace("-", " ");
+            mStartupScanner.AddMainModuleScan(pattern, 
+                (result) =>
+                {
+                    if (result.Found)
+                    {
+                        mem.SafeWriteRaw(mBaseAddr + result.Offset, fileContents);
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Successfully found and overwrote pattern in {fileName}");
+                    }
+                    else
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Couldn't find pattern to replace using {fileName}");
+                });
         }
 
         public void Patch()
@@ -149,17 +151,20 @@ namespace p4gpc.inaba
             List<ExPatch> patches = ParseExPatch(filePath);
             foreach (var patch in patches)
             {
-                var result = scanner.FindPattern(patch.Pattern);
-                if (!result.Found)
+                mStartupScanner.AddMainModuleScan(patch.Pattern, (result) =>
                 {
-                    mLogger.WriteLine($"[Inaba Exe Patcher] Couldn't find address for {patch.Name}, not applying it", Color.Red);
-                    continue;
-                }
 
-                if(patch.IsReplacement)
-                    ReplacementPatch(patch, result, filePath);
-                else
-                    FunctionPatch(patch, result, filePath);
+                    if (!result.Found)
+                    {
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Couldn't find address for {patch.Name}, not applying it", Color.Red);
+                        return;
+                    }
+
+                    if (patch.IsReplacement)
+                        ReplacementPatch(patch, result, filePath);
+                    else
+                        FunctionPatch(patch, result, filePath);
+                });
             }
         }
 
@@ -493,7 +498,6 @@ namespace p4gpc.inaba
         public void Dispose()
         {
             mProc?.Dispose();
-            scanner?.Dispose();
         }
     }
 }

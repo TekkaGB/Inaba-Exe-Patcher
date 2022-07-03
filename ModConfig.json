@@ -2,7 +2,7 @@
   "ModId": "p4gpc.inaba",
   "ModName": "Inaba Exe Patcher",
   "ModAuthor": "Tekka",
-  "ModVersion": "1.3.0",
+  "ModVersion": "1.3.1",
   "ModDescription": "Simple patcher to modify contents in P4G.exe at startup",
   "ModDll": "p4gpc.inaba.dll",
   "ModIcon": "Preview.png",
@@ -10,7 +10,7 @@
   "ModR2RManagedDll64": "x64/p4gpc.inaba.dll",
   "ModNativeDll32": "",
   "ModNativeDll64": "",
-  "ModDependencies": [ "reloaded.sharedlib.hooks", "reloaded.universal.steamhook" ],
+  "ModDependencies": [ "reloaded.sharedlib.hooks", "Reloaded.Memory.SigScan.ReloadedII" ],
   "OptionalDependencies": null,
   "SupportedAppId": [ "p4g.exe" ]
 }
