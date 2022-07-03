@@ -230,7 +230,7 @@ namespace p4gpc.inaba
             {
                 // Search for the start of a new patch (and its name)
                 string line = RemoveComments(rawLine);
-                var patchMatch = Regex.Match(line, @"\[\s*patch\s*(?:\s+(.*?))?\s*\]");
+                var patchMatch = Regex.Match(line, @"\[\s*patch\s*(?:\s+(.*?))?\s*\]", RegexOptions.IgnoreCase);
                 if (patchMatch.Success)
                 {
                     startReplacement = false;
@@ -244,7 +244,7 @@ namespace p4gpc.inaba
                 }
 
                 // Search for the start of a new replacement
-                var replacementMatch = Regex.Match(line, @"\[\s*replacement\s*(?:\s+(.*?))?\s*\]");
+                var replacementMatch = Regex.Match(line, @"\[\s*replacement\s*(?:\s+(.*?))?\s*\]", RegexOptions.IgnoreCase);
                 if(replacementMatch.Success)
                 {
                     startReplacement = true;
@@ -258,7 +258,7 @@ namespace p4gpc.inaba
                 }
 
                 // Search for a variable definition
-                var variableMatch = Regex.Match(line, @"^\s*var\s+([^\s(]+)\(([0-9]+)\)?\s*(?:=\s*(.*))?");
+                var variableMatch = Regex.Match(line, @"^\s*var\s+([^\s(]+)\(([0-9]+)\)?\s*(?:=\s*(.*))?", RegexOptions.IgnoreCase);
                 if (variableMatch.Success)
                 {
                     string name = variableMatch.Groups[1].Value;
@@ -286,7 +286,7 @@ namespace p4gpc.inaba
                 }
 
                 // Search for a constant definition 
-                var constantMatch = Regex.Match(line, @"^\s*const\s+(\S+)\s*=\s*(.+)");
+                var constantMatch = Regex.Match(line, @"^\s*const\s+(\S+)\s*=\s*(.+)", RegexOptions.IgnoreCase);
                 if (constantMatch.Success)
                 {
                     string name = constantMatch.Groups[1].Value;
@@ -303,7 +303,7 @@ namespace p4gpc.inaba
                 if (!startPatch && !startReplacement) continue;
 
                 // Search for a patten to scan for
-                var patternMatch = Regex.Match(line, @"^\s*pattern\s*=\s*(.+)");
+                var patternMatch = Regex.Match(line, @"^\s*pattern\s*=\s*(.+)", RegexOptions.IgnoreCase);
                 if (patternMatch.Success)
                 {
                     pattern = patternMatch.Groups[1].Value.TrimEnd();
@@ -311,7 +311,7 @@ namespace p4gpc.inaba
                 }
 
                 // Search for an order to execute the hook in
-                var orderMatch = Regex.Match(line, @"^\s*order\s*=\s*(.+)");
+                var orderMatch = Regex.Match(line, @"^\s*order\s*=\s*(.+)", RegexOptions.IgnoreCase);
                 if (orderMatch.Success)
                 {
                     order = orderMatch.Groups[1].Value;
@@ -319,7 +319,7 @@ namespace p4gpc.inaba
                 }
 
                 // Search for an offset to make the patch/replacement on
-                var offsetMatch = Regex.Match(line, @"^\s*offset\s*=\s*([0-9]+)");
+                var offsetMatch = Regex.Match(line, @"^\s*offset\s*=\s*([0-9]+)", RegexOptions.IgnoreCase);
                 if (offsetMatch.Success)
                 {
                     if (!int.TryParse(offsetMatch.Groups[1].Value, out offset))
@@ -328,7 +328,7 @@ namespace p4gpc.inaba
                 }
 
                 // Search for a literal to search for
-                var searchMatch  = Regex.Match(line, @"^\s*search\s*=\s*(.+)");
+                var searchMatch  = Regex.Match(line, @"^\s*search\s*=\s*(.+)", RegexOptions.IgnoreCase);
                 if(searchMatch.Success)
                 {
                     string value = searchMatch.Groups[1].Value;
@@ -363,7 +363,7 @@ namespace p4gpc.inaba
                 }
 
                 // Search for a replacement (the actual value to set the thing to)
-                var replaceValueMatch = Regex.Match(line, @"^\s*replacement\s*=\s*(.+)");
+                var replaceValueMatch = Regex.Match(line, @"^\s*replacement\s*=\s*(.+)", RegexOptions.IgnoreCase);
                 if(replaceValueMatch.Success)
                 {
                     var value = replaceValueMatch.Groups[1].Value;
@@ -371,7 +371,7 @@ namespace p4gpc.inaba
                     continue;
                 }
 
-                var padMatch = Regex.Match(line, @"^\s*padNull\s*=\s*(.+)");
+                var padMatch = Regex.Match(line, @"^\s*padNull\s*=\s*(.+)", RegexOptions.IgnoreCase);
                 if(padMatch.Success)
                 {
                     string value = padMatch.Groups[1].Value;
@@ -424,10 +424,10 @@ namespace p4gpc.inaba
                     patch.Function[i] = patch.Function[i].Replace("{popCaller}", mHooks.Utilities.PopCdeclCallerSavedRegisters());
                     patch.Function[i] = patch.Function[i].Replace("{pushXmm}", Utils.PushXmm());
                     patch.Function[i] = patch.Function[i].Replace("{popXmm}", Utils.PopXmm());
-                    var xmmMatch = Regex.Match(patch.Function[i], @"{pushXmm([0-9]+)}");
+                    var xmmMatch = Regex.Match(patch.Function[i], @"{pushXmm([0-9]+)}", RegexOptions.IgnoreCase);
                     if(xmmMatch.Success) 
                         patch.Function[i] = patch.Function[i].Replace(xmmMatch.Groups[0].Value, Utils.PushXmm(int.Parse(xmmMatch.Groups[1].Value)));
-                    xmmMatch = Regex.Match(patch.Function[i], @"{popXmm([0-9]+)}");
+                    xmmMatch = Regex.Match(patch.Function[i], @"{popXmm([0-9]+)}", RegexOptions.IgnoreCase);
                     if (xmmMatch.Success)
                         patch.Function[i] = patch.Function[i].Replace(xmmMatch.Groups[0].Value, Utils.PopXmm(int.Parse(xmmMatch.Groups[1].Value)));
 
