@@ -192,7 +192,7 @@ namespace p4gpc.inaba
                     mLogger.WriteLine(line);
                 return;
             }
-            mLogger.WriteLine($"[Inaba Exe Patcher] Applied patch {patch.Name} from {Path.GetFileName(filePath)}");
+            mLogger.WriteLine($"[Inaba Exe Patcher] Applied patch {patch.Name} from {Path.GetFileName(filePath)} at 0x{mBaseAddr + result.Offset + patch.Offset:X}");
         }
 
         private void ReplacementPatch(ExPatch patch, PatternScanResult result, string filePath)
@@ -209,7 +209,7 @@ namespace p4gpc.inaba
             if (patch.PadNull)
                 replacementLength = patch.Pattern.Replace(" ", "").Length / 2;
             WriteValue(replacement, mBaseAddr + result.Offset + patch.Offset, patch.Name, replacementLength);
-            mLogger.WriteLine($"[Inaba Exe Patcher] Applied replacement {patch.Name} from {Path.GetFileName(filePath)}");
+            mLogger.WriteLine($"[Inaba Exe Patcher] Applied replacement {patch.Name} from {Path.GetFileName(filePath)} at 0x{mBaseAddr + result.Offset + patch.Offset:X}");
         }
 
         /// <summary>
