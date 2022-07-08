@@ -337,7 +337,7 @@ namespace p4gpc.inaba
                 }
 
                 // Search for an offset to make the patch/replacement on
-                var offsetMatch = Regex.Match(line, @"^\s*offset\s*=\s*([0-9]+)", RegexOptions.IgnoreCase);
+                var offsetMatch = Regex.Match(line, @"^\s*offset\s*=\s*([+-]*[0-9]+)", RegexOptions.IgnoreCase);
                 if (offsetMatch.Success)
                 {
                     if (!int.TryParse(offsetMatch.Groups[1].Value, out offset))
