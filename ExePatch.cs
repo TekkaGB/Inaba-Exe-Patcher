@@ -172,11 +172,24 @@ namespace p4gpc.inaba
         {
             AsmHookBehaviour? order = null;
             if (patch.ExecutionOrder == "before")
+            {
                 order = AsmHookBehaviour.ExecuteFirst;
+                mLogger.WriteLine($"[Inaba Exe Patcher] Executing {patch.Name} function before original");
+            }
             else if (patch.ExecutionOrder == "after")
+            {
+                mLogger.WriteLine($"[Inaba Exe Patcher] Executing {patch.Name} function after original");
                 order = AsmHookBehaviour.ExecuteAfter;
+            }
             else if (patch.ExecutionOrder == "only")
+            {
+                mLogger.WriteLine($"[Inaba Exe Patcher] Replacing original {patch.Name} function");
                 order = AsmHookBehaviour.DoNotExecuteOriginal;
+            } else if(patch.ExecutionOrder != "")
+            {
+                mLogger.WriteLine($"[Inaba Exe Patcher] Unknown execution order {patch.ExecutionOrder}, using default (only). Valid orders are before, after and only");
+            }
+
             try
             {
                 if (order != null)
