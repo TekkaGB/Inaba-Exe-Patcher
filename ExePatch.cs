@@ -78,7 +78,7 @@ namespace p4gpc.inaba
                 mLogger.WriteLine($"[Inaba Exe Patcher] (Debug) Replacement Content (in hex) = {BitConverter.ToString(fileContents).Replace("-", " ")}");
             }
             var pattern = BitConverter.ToString(fileHeader).Replace("-", " ");
-            mStartupScanner.AddMainModuleScan(pattern, 
+            mStartupScanner.AddMainModuleScan(pattern,
                 (result) =>
                 {
                     if (result.Found)
@@ -185,7 +185,8 @@ namespace p4gpc.inaba
             {
                 mLogger.WriteLine($"[Inaba Exe Patcher] Replacing original {patch.Name} function");
                 order = AsmHookBehaviour.DoNotExecuteOriginal;
-            } else if(patch.ExecutionOrder != "")
+            }
+            else if (patch.ExecutionOrder != "")
             {
                 mLogger.WriteLine($"[Inaba Exe Patcher] Unknown execution order {patch.ExecutionOrder}, using default (only). Valid orders are before, after and only");
             }
@@ -210,7 +211,7 @@ namespace p4gpc.inaba
 
         private void ReplacementPatch(ExPatch patch, PatternScanResult result, string filePath)
         {
-            if(patch.Function.Count() == 0)
+            if (patch.Function.Count() == 0)
             {
                 mLogger.WriteLine($"[Inaba Exe Patcher] No replacement value specified for {patch.Name} replacement, skipping it");
                 return;
@@ -263,7 +264,7 @@ namespace p4gpc.inaba
 
                 // Search for the start of a new replacement
                 var replacementMatch = Regex.Match(line, @"\[\s*replacement\s*(?:\s+(.*?))?\s*\]", RegexOptions.IgnoreCase);
-                if(replacementMatch.Success)
+                if (replacementMatch.Success)
                 {
                     startReplacement = true;
                     startPatch = false;
@@ -337,17 +338,33 @@ namespace p4gpc.inaba
                 }
 
                 // Search for an offset to make the patch/replacement on
-                var offsetMatch = Regex.Match(line, @"^\s*offset\s*=\s*([+-]*[0-9]+)", RegexOptions.IgnoreCase);
+                var offsetMatch = Regex.Match(line, @"^\s*offset\s*=\s*(([+-])?(0x|0b)?([0-9A-Fa-f]+))", RegexOptions.IgnoreCase);
                 if (offsetMatch.Success)
                 {
-                    if (!int.TryParse(offsetMatch.Groups[1].Value, out offset))
+                    int offsetBase = 10;
+                    if (offsetMatch.Groups[3].Success)
+                    {
+                        if (offsetMatch.Groups[3].Value == "0b")
+                            offsetBase = 2;
+                        else if (offsetMatch.Groups[3].Value == "0x")
+                            offsetBase = 16;
+                    }
+                    try
+                    {
+                        offset = Convert.ToInt32(offsetMatch.Groups[4].Value, offsetBase);
+                        if (offsetMatch.Groups[2].Value == "-")
+                            offset *= -1;
+                    }
+                    catch
+                    {
                         mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse offset {offsetMatch.Groups[1].Value} as an int leaving offset as 0");
+                    }
                     continue;
                 }
 
                 // Search for a literal to search for
-                var searchMatch  = Regex.Match(line, @"^\s*search\s*=\s*(.+)", RegexOptions.IgnoreCase);
-                if(searchMatch.Success)
+                var searchMatch = Regex.Match(line, @"^\s*search\s*=\s*(.+)", RegexOptions.IgnoreCase);
+                if (searchMatch.Success)
                 {
                     string value = searchMatch.Groups[1].Value;
                     if (int.TryParse(value, out int intValue))
@@ -382,7 +399,7 @@ namespace p4gpc.inaba
 
                 // Search for a replacement (the actual value to set the thing to)
                 var replaceValueMatch = Regex.Match(line, @"^\s*replacement\s*=\s*(.+)", RegexOptions.IgnoreCase);
-                if(replaceValueMatch.Success)
+                if (replaceValueMatch.Success)
                 {
                     var value = replaceValueMatch.Groups[1].Value;
                     currentPatch.Add(value);
@@ -390,7 +407,7 @@ namespace p4gpc.inaba
                 }
 
                 var padMatch = Regex.Match(line, @"^\s*padNull\s*=\s*(.+)", RegexOptions.IgnoreCase);
-                if(padMatch.Success)
+                if (padMatch.Success)
                 {
                     string value = padMatch.Groups[1].Value;
                     if (!bool.TryParse(value, out padNull))
@@ -401,7 +418,7 @@ namespace p4gpc.inaba
                 if (startPatch)
                     currentPatch.Add(line);
             }
-            if(startReplacement || startPatch)
+            if (startReplacement || startPatch)
                 SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, ref padNull, startReplacement);
             FillInVariables(patches, variables, constants);
             return patches;
@@ -411,7 +428,7 @@ namespace p4gpc.inaba
         {
             if (currentPatch.Count > 0)
             {
-                if(!isReplacement)
+                if (!isReplacement)
                     currentPatch.Insert(0, "use32");
                 patches.Add(new ExPatch(patchName, pattern, currentPatch.ToArray(), order, offset, isReplacement, padNull));
             }
@@ -443,7 +460,7 @@ namespace p4gpc.inaba
                     patch.Function[i] = patch.Function[i].Replace("{pushXmm}", Utils.PushXmm());
                     patch.Function[i] = patch.Function[i].Replace("{popXmm}", Utils.PopXmm());
                     var xmmMatch = Regex.Match(patch.Function[i], @"{pushXmm([0-9]+)}", RegexOptions.IgnoreCase);
-                    if(xmmMatch.Success) 
+                    if (xmmMatch.Success)
                         patch.Function[i] = patch.Function[i].Replace(xmmMatch.Groups[0].Value, Utils.PushXmm(int.Parse(xmmMatch.Groups[1].Value)));
                     xmmMatch = Regex.Match(patch.Function[i], @"{popXmm([0-9]+)}", RegexOptions.IgnoreCase);
                     if (xmmMatch.Success)
@@ -486,10 +503,10 @@ namespace p4gpc.inaba
                 }
                 string stringValue = stringValueMatch.Groups[1].Value;
                 var stringBytes = Encoding.ASCII.GetBytes(stringValue);
-                if(stringBytes.Length < stringLength)
+                if (stringBytes.Length < stringLength)
                 {
                     List<byte> byteList = stringBytes.ToList();
-                    while(byteList.Count < stringLength)
+                    while (byteList.Count < stringLength)
                         byteList.Add(0);
                     stringBytes = byteList.ToArray();
                 }
