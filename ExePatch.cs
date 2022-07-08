@@ -478,17 +478,60 @@ namespace p4gpc.inaba
         /// <param name="stringLength">The length of the string that should be written, if <paramref name="value"/> is shorter than this it will be padded with null characters. This has no effect if <paramref name="value"/> is not written as a string</param>
         private void WriteValue(string value, IntPtr address, string name, int stringLength)
         {
-            if (int.TryParse(value, out int intValue))
+            Match match;
+            match = Regex.Match(value, @"^([0-9]+)(u)?$");
+            if (match.Success && int.TryParse(match.Groups[1].Value, out int intValue))
             {
-                mem.SafeWrite(address, intValue);
-                mLogger.WriteLine($"[Inaba Exe Patcher] Wrote int {intValue} as value of {name} at 0x{address:X}");
+                if(match.Groups[2].Success)
+                {
+                    mem.SafeWrite(address, (uint)intValue);
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Wrote uint {intValue} as value of {name} at 0x{address:X}");
+                }
+                else
+                {
+                    mem.SafeWrite(address, intValue);
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Wrote int {intValue} as value of {name} at 0x{address:X}");
+                }
+                return;
             }
-            else if (Regex.IsMatch(value, @"[0-9]+f") && float.TryParse(value, out float floatValue))
+            match = Regex.Match(value, @"^([0-9]+)(u)?l$"); 
+            if(match.Success && long.TryParse(match.Groups[1].Value, out long longValue))
+            {
+                if (match.Groups[2].Success)
+                {
+                    mem.SafeWrite(address, (ulong)longValue);
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Wrote ulong {longValue} as value of {name} at 0x{address:X}");
+                }
+                else
+                {
+                    mem.SafeWrite(address, longValue);
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Wrote long {longValue} as value of {name} at 0x{address:X}");
+                }
+                return;
+            }
+            match = Regex.Match(value, @"^([0-9]+)(u)?s$");
+            if (match.Success && short.TryParse(match.Groups[1].Value, out short shortValue))
+            {
+                if (match.Groups[2].Success)
+                {
+                    mem.SafeWrite(address, (ushort)shortValue);
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Wrote ushort {shortValue} as value of {name} at 0x{address:X}");
+                }
+                else
+                {
+                    mem.SafeWrite(address, shortValue);
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Wrote short {shortValue} as value of {name} at 0x{address:X}");
+                }
+                return;
+            }
+            match = Regex.Match(value, @"^([0-9]+(?:\.[0-9]+)?)(u)?f$");
+            if (match.Success && float.TryParse(match.Groups[1].Value, out float floatValue))
             {
                 mem.SafeWrite(address, floatValue);
                 mLogger.WriteLine($"[Inaba Exe Patcher] Wrote float {floatValue} as value of {name} at 0x{address:X}");
+                return;
             }
-            else if (double.TryParse(value, out double doubleValue))
+            if (double.TryParse(value.Replace("d", ""), out double doubleValue))
             {
                 mem.SafeWrite(address, doubleValue);
                 mLogger.WriteLine($"[Inaba Exe Patcher] Wrote double {doubleValue} as value of {name} at 0x{address:X}");
