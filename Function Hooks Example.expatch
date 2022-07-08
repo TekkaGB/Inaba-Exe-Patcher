@@ -1,0 +1,58 @@
+// We can use // at any point in the code to make comments, anything following them is completely ignored (it's literally deleted before any parsing is done)
+// Define the colour for the filter (white for no filter which is what we want) these values are directly replaced everywhere else (you don't have to just do numbers, you can put anything you want, even stuff with spaces in between)
+const rColour = 255
+const gColour = 255
+const bColour = 255
+
+// Define a 1 byte long variable that can be read in assembly code with default value of 0 (we're using it as a bool in this case) this variable is global to this entire expatch (there is no "scope" in a expatch apart from entire expatch files being completely separate)
+var inSkillMenu(1) = 0 // Default values don't have to be defined (although you should to be safe) and can be strings (surrounded by "s) floats (with an f at the end e.g. 2.5f), doubles (any decimal without an f at the end e.g. 1.234), ints (any non decimal number e.g. 23), shorts (ints suffixed with s), longs(ints suffixed with l), and unsigned integral types (u, us, ul)
+
+// Define the first patch that alters the colour in the analysis menu
+[patch Analysis Patch]
+// Define some information about the patch, these definitions do not have to come first or in any specific order although they do have to be under the patch tag
+pattern = 6A 4C 6A 24 51 ?? ?? F3 0F // The pattern that is scanned for to find the address of the code
+offset = 4 // An offset that is added to the address found by the pattern when creating the hook since the pattern finds code 4 bytes too early
+order = before // Execute our code before the original (other options are after which does ours after the original, and only which does not execute the original at all)
+// The actual assembly code that we're injecting (anything other than definitions like "pattern =" and "const =" that is inside of a patch tag is considered assembly code)
+add esp, 12
+push {bColour} // We use {constantName} to substitute the colour values defined at the top into the code 
+push {gColour}
+push {rColour}
+
+// Define the second patch that tells us that we're in the skill menu
+[patch Skill Menu Patch]
+pattern = E8 ?? ?? ?? ?? F3 0F 10 45 ?? 83 C4 0C F3 0F 10 4D ?? F3 0F 58 05 ?? ?? ?? ??
+order = before
+mov byte [{inSkillMenu}], 1 // We use {variableName} to substitute the address of our created variable that we can freely read and write to into our code
+
+// Define the third patch that changes the colour while in the skill menu
+[patch Skill Menu Colour Patch]
+pattern = C7 05 ?? ?? ?? ?? 00 00 00 00 FF 75 ?? FF 75 ?? FF 75 ??
+offset = 10
+order = before
+// Check if we're in the skill menu
+cmp byte [{inSkillMenu}], 1
+jne endHook
+// Change the colour to white
+mov byte [ebp + 8], {rColour}
+mov byte [ebp + 9], {gColour}
+mov byte [ebp + 10], {bColour}
+// Set it so we are no longer in the skill menu
+mov byte [{inSkillMenu}], 0
+label endHook
+
+// Define the final patch that changes the colour in the Persona details menu
+[patch Persona Details Menu Patch]
+pattern = FF 75 ?? FF 75 ?? FF 75 ?? 57 51 8B 4D ?? F3 0F 11 04 24 E8 ?? ?? ?? ?? F3 0F 10 45 ?? 83 C4 14
+order = only // This time we want to completely replace the original code, only running our new code (when injecting code the jump to our new code replaces at least 7 bytes so we end up replacing the original three colour pushes)
+push {rColour}
+push {gColour}
+push {bColour}
+
+// The following are a few more utility functions that are often useful but not used in this case
+// {pushCaller} pushes eax, ecx, edx in that order
+// {popCaller} pops edx, ecx, eax in that order
+// {pushXmm} pushes xmm0 to xmm7 to the stack (restore them using popXmm)
+// {popXmm} pops xmm7 to xmm0 back from the stack (use after pushing them with pushXmm)
+// {pushXmm2} pushes a specfic xmm register to the stack (in this case xmm2)
+// {popXmm2} pops a specific xmm register back from the stack (in this case xmm2)
