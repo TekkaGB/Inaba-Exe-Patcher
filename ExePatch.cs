@@ -247,7 +247,7 @@ namespace p4gpc.inaba
             foreach (var rawLine in File.ReadLines(filePath))
             {
                 // Search for the start of a new patch (and its name)
-                string line = RemoveComments(rawLine);
+                string line = RemoveComments(rawLine).Trim();
                 var patchMatch = Regex.Match(line, @"\[\s*patch\s*(?:\s+(.*?))?\s*\]", RegexOptions.IgnoreCase);
                 if (patchMatch.Success)
                 {
