@@ -1,0 +1,11 @@
+[replacement Opening Movie Redirection]
+// Using a string literal to find the text to replace (no wildcards)
+search = "P4CTOP3_e.usm" // could also do floats, doubles, ints, shorts or longs
+// Using a signature scanning pattern to find the place to replace (can include ?? wildcards)
+// pattern = 50 34 43 54 4F 50 33 5F 65 2E 75 73 6D
+// What to write to memory where we find the text/pattern
+replacement = "P4CTOP1.usm" // could also do floats, doubles, ints, shorts or longs
+// If true any characters not used in your replacement will be turned to null characters (for c style string endings) otherwise they will be unchanged
+// For example if you search for "The" and replace it with "An" having this off will result in "Ane" in memory, with it on it will be "An"
+padNull = true // This defaults to true, just here for the sake of explanation
+offset = 0 // offset the location of the replacement from the result of the search (defaults to 0 so it's redundant here)
