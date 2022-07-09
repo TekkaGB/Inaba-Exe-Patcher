@@ -6,6 +6,7 @@ using p4gpc.inaba.Configuration;
 using p4gpc.inaba.Configuration.Implementation;
 using System.IO;
 using Reloaded.Memory.SigScan.ReloadedII.Interfaces;
+using System.Diagnostics;
 
 namespace p4gpc.inaba
 {
@@ -43,6 +44,10 @@ namespace p4gpc.inaba
         /// </summary>
         public void Start(IModLoaderV1 loader)
         {
+            #if DEBUG
+            Debugger.Launch();
+            #endif
+
             _modLoader = (IModLoader)loader;
             _logger = (ILogger)_modLoader.GetLogger();
             _modLoader.GetController<IReloadedHooks>().TryGetTarget(out _hooks);
@@ -61,7 +66,7 @@ namespace p4gpc.inaba
 
             if (Directory.Exists(patchPath))
             {
-                using var exePatcher = new ExePatch(_logger, startupScanner, _configuration);
+                using var exePatcher = new ExePatch(_logger, startupScanner, _configuration, _hooks);
                 exePatcher.Patch();
             }
         }
