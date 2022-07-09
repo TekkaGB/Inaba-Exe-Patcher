@@ -277,7 +277,7 @@ namespace p4gpc.inaba
                 }
 
                 // Search for a variable definition
-                var variableMatch = Regex.Match(line, @"^\s*var\s+([^\s(]+)\(([0-9]+)\)?\s*(?:=\s*(.*))?", RegexOptions.IgnoreCase);
+                var variableMatch = Regex.Match(line, @"^\s*var\s+([^\s(]+)(?:\(([0-9]+)\))?\s*(?:=\s*(.*))?", RegexOptions.IgnoreCase);
                 if (variableMatch.Success)
                 {
                     string name = variableMatch.Groups[1].Value;
@@ -288,11 +288,21 @@ namespace p4gpc.inaba
                     }
                     int length = 4;
                     if (variableMatch.Groups[2].Success)
+                    {
                         if (!int.TryParse(variableMatch.Groups[2].Value, out length))
                             mLogger.WriteLine($"[Inaba Exe Patcher] Invalid variable length \"{variableMatch.Groups[2].Value}\" defaulting to length of 4 bytes");
+                    }
+                    else
+                    {
+                        // Automatically set the length to that of the string if none was explicitly defined
+                        var match = Regex.Match(variableMatch.Groups[3].Value, "\"(.*)\"");
+                        if (match.Success)
+                            length = match.Groups[1].Value.Length + 1;
+                    }
                     try
                     {
                         IntPtr variableAddress = mem.Allocate(length);
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Allocated {length} byte{(length != 1 ? "s" : "")} for {name} at 0x{variableAddress:X}");
                         if (variableMatch.Groups[3].Success)
                             WriteValue(variableMatch.Groups[3].Value, variableAddress, name, 0);
                         variables.Add(name, variableAddress);
@@ -510,8 +520,8 @@ namespace p4gpc.inaba
                 }
                 catch { }
             }
-            match = Regex.Match(value, @"^([+-])?(0x|0b)?([0-9A-Fa-f]+)(u)?l$"); 
-            if(match.Success)
+            match = Regex.Match(value, @"^([+-])?(0x|0b)?([0-9A-Fa-f]+)(u)?l$");
+            if (match.Success)
             {
                 int offsetBase = 10;
                 if (match.Groups[2].Success)
