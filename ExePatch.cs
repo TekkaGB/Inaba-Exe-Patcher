@@ -479,54 +479,104 @@ namespace p4gpc.inaba
         private void WriteValue(string value, IntPtr address, string name, int stringLength)
         {
             Match match;
-            match = Regex.Match(value, @"^([0-9]+)(u)?$");
-            if (match.Success && int.TryParse(match.Groups[1].Value, out int intValue))
+            match = Regex.Match(value, @"^([+-])?(0x|0b)?([0-9A-Fa-f]+)(u)?$");
+            if (match.Success)
             {
-                if(match.Groups[2].Success)
-                {
-                    mem.SafeWrite(address, (uint)intValue);
-                    mLogger.WriteLine($"[Inaba Exe Patcher] Wrote uint {intValue} as value of {name} at 0x{address:X}");
-                }
-                else
-                {
-                    mem.SafeWrite(address, intValue);
-                    mLogger.WriteLine($"[Inaba Exe Patcher] Wrote int {intValue} as value of {name} at 0x{address:X}");
-                }
-                return;
-            }
-            match = Regex.Match(value, @"^([0-9]+)(u)?l$"); 
-            if(match.Success && long.TryParse(match.Groups[1].Value, out long longValue))
-            {
+                int offsetBase = 10;
                 if (match.Groups[2].Success)
                 {
-                    mem.SafeWrite(address, (ulong)longValue);
-                    mLogger.WriteLine($"[Inaba Exe Patcher] Wrote ulong {longValue} as value of {name} at 0x{address:X}");
+                    if (match.Groups[2].Value == "0b")
+                        offsetBase = 2;
+                    else if (match.Groups[2].Value == "0x")
+                        offsetBase = 16;
                 }
-                else
+                try
                 {
-                    mem.SafeWrite(address, longValue);
-                    mLogger.WriteLine($"[Inaba Exe Patcher] Wrote long {longValue} as value of {name} at 0x{address:X}");
+                    if (match.Groups[4].Success)
+                    {
+                        uint intValue = Convert.ToUInt32(match.Groups[3].Value, offsetBase);
+                        mem.SafeWrite(address, intValue);
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Wrote uint {intValue} as value of {name} at 0x{address:X}");
+                    }
+                    else
+                    {
+                        int intValue = Convert.ToInt32(match.Groups[3].Value, offsetBase);
+                        if (match.Groups[1].Value == "-")
+                            intValue *= -1;
+                        mem.SafeWrite(address, intValue);
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Wrote int {intValue} as value of {name} at 0x{address:X}");
+                    }
+                    return;
                 }
-                return;
+                catch { }
             }
-            match = Regex.Match(value, @"^([0-9]+)(u)?s$");
-            if (match.Success && short.TryParse(match.Groups[1].Value, out short shortValue))
+            match = Regex.Match(value, @"^([+-])?(0x|0b)?([0-9A-Fa-f]+)(u)?l$"); 
+            if(match.Success)
             {
+                int offsetBase = 10;
                 if (match.Groups[2].Success)
                 {
-                    mem.SafeWrite(address, (ushort)shortValue);
-                    mLogger.WriteLine($"[Inaba Exe Patcher] Wrote ushort {shortValue} as value of {name} at 0x{address:X}");
+                    if (match.Groups[2].Value == "0b")
+                        offsetBase = 2;
+                    else if (match.Groups[2].Value == "0x")
+                        offsetBase = 16;
                 }
-                else
+                try
                 {
-                    mem.SafeWrite(address, shortValue);
-                    mLogger.WriteLine($"[Inaba Exe Patcher] Wrote short {shortValue} as value of {name} at 0x{address:X}");
+                    if (match.Groups[4].Success)
+                    {
+                        ulong longValue = Convert.ToUInt64(match.Groups[3].Value, offsetBase);
+                        mem.SafeWrite(address, longValue);
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Wrote ulong {longValue} as value of {name} at 0x{address:X}");
+                    }
+                    else
+                    {
+                        long longValue = Convert.ToInt64(match.Groups[3].Value, offsetBase);
+                        if (match.Groups[1].Value == "-")
+                            longValue *= -1;
+                        mem.SafeWrite(address, longValue);
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Wrote long {longValue} as value of {name} at 0x{address:X}");
+                    }
+                    return;
                 }
-                return;
+                catch { }
             }
-            match = Regex.Match(value, @"^([0-9]+(?:\.[0-9]+)?)(u)?f$");
-            if (match.Success && float.TryParse(match.Groups[1].Value, out float floatValue))
+            match = Regex.Match(value, @"^([+-])?(0x|0b)?([0-9A-Fa-f]+)(u)?s$");
+            if (match.Success)
             {
+                int offsetBase = 10;
+                if (match.Groups[2].Success)
+                {
+                    if (match.Groups[2].Value == "0b")
+                        offsetBase = 2;
+                    else if (match.Groups[2].Value == "0x")
+                        offsetBase = 16;
+                }
+                try
+                {
+                    if (match.Groups[4].Success)
+                    {
+                        ushort shortValue = Convert.ToUInt16(match.Groups[3].Value, offsetBase);
+                        mem.SafeWrite(address, shortValue);
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Wrote ushort {shortValue} as value of {name} at 0x{address:X}");
+                    }
+                    else
+                    {
+                        short shortValue = Convert.ToInt16(match.Groups[3].Value, offsetBase);
+                        if (match.Groups[1].Value == "-")
+                            shortValue *= -1;
+                        mem.SafeWrite(address, shortValue);
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Wrote short {shortValue} as value of {name} at 0x{address:X}");
+                    }
+                    return;
+                }
+                catch { }
+            }
+            match = Regex.Match(value, @"^([+-])?([0-9]+(?:\.[0-9]+)?)f$");
+            if (match.Success && float.TryParse(match.Groups[2].Value, out float floatValue))
+            {
+                if (match.Groups[1].Success)
+                    floatValue *= -1;
                 mem.SafeWrite(address, floatValue);
                 mLogger.WriteLine($"[Inaba Exe Patcher] Wrote float {floatValue} as value of {name} at 0x{address:X}");
                 return;
