@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using Reloaded.Mod.Interfaces;
 using System.IO;
@@ -456,7 +456,7 @@ namespace p4gpc.inaba
         /// <param name="variables">A Dictionary where the key is the variable name and the value is the variable address</param>
         private void FillInVariables(List<ExPatch> patches, Dictionary<string, IntPtr> variables, Dictionary<string, string> constants)
         {
-            if (variables.Count == 0)
+            if (variables.Count == 0 && constants.Count == 0)
                 return;
             foreach (var patch in patches)
                 for (int i = 0; i < patch.Function.Length; i++)
