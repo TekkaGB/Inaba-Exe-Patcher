@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using Reloaded.Mod.Interfaces;
 using System.IO;
@@ -26,6 +26,7 @@ namespace p4gpc.inaba
         private readonly Process mProc;
         private readonly IntPtr mBaseAddr;
         private IReloadedHooks mHooks;
+        private List<IAsmHook> mAsmHooks;
 
         public ExePatch(ILogger logger, IStartupScanner startupScanner, Config config, IReloadedHooks hooks)
         {
@@ -36,6 +37,7 @@ namespace p4gpc.inaba
             mProc = Process.GetCurrentProcess();
             mBaseAddr = mProc.MainModule.BaseAddress;
             mem = new Memory();
+            mAsmHooks = new List<IAsmHook>();
         }
 
         private void SinglePatch(string filePath)
@@ -181,22 +183,20 @@ namespace p4gpc.inaba
                 mLogger.WriteLine($"[Inaba Exe Patcher] Executing {patch.Name} function after original");
                 order = AsmHookBehaviour.ExecuteAfter;
             }
-            else if (patch.ExecutionOrder == "only")
+            else if (patch.ExecutionOrder == "only" || patch.ExecutionOrder == "")
             {
                 mLogger.WriteLine($"[Inaba Exe Patcher] Replacing original {patch.Name} function");
                 order = AsmHookBehaviour.DoNotExecuteOriginal;
             }
-            else if (patch.ExecutionOrder != "")
+            else
             {
                 mLogger.WriteLine($"[Inaba Exe Patcher] Unknown execution order {patch.ExecutionOrder}, using default (only). Valid orders are before, after and only");
+                order = AsmHookBehaviour.DoNotExecuteOriginal;
             }
 
             try
             {
-                if (order != null)
-                    mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset + patch.Offset), (AsmHookBehaviour)order).Activate();
-                else
-                    mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset + patch.Offset)).Activate();
+                mAsmHooks.Add(mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset + patch.Offset), (AsmHookBehaviour)order).Activate());
             }
             catch (Exception ex)
             {
