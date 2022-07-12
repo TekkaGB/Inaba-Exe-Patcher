@@ -400,7 +400,7 @@ namespace p4gpc.inaba
                             mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse {value} as an int, double, float or string not creating search pattern");
                             continue;
                         }
-                        string stringValue = stringValueMatch.Groups[1].Value;
+                        string stringValue = Regex.Unescape(stringValueMatch.Groups[1].Value);
                         var bytes = Encoding.ASCII.GetBytes(stringValue);
                         pattern = BitConverter.ToString(bytes).Replace("-", " ");
                     }
@@ -604,7 +604,7 @@ namespace p4gpc.inaba
                     mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse {value} as an int, double, float or string not writing a value for {name}");
                     return;
                 }
-                string stringValue = stringValueMatch.Groups[1].Value;
+                string stringValue = Regex.Unescape(stringValueMatch.Groups[1].Value);
                 var stringBytes = Encoding.ASCII.GetBytes(stringValue);
                 if (stringBytes.Length < stringLength)
                 {
