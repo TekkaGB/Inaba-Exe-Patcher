@@ -560,6 +560,37 @@ namespace p4gpc.inaba
                 }
                 catch { }
             }
+            match = Regex.Match(value, @"^([+-])?(0x|0b)?([0-9A-Fa-f]+)([su])b$");
+            if (match.Success)
+            {
+                int offsetBase = 10;
+                if (match.Groups[2].Success)
+                {
+                    if (match.Groups[2].Value == "0b")
+                        offsetBase = 2;
+                    else if (match.Groups[2].Value == "0x")
+                        offsetBase = 16;
+                }
+                try
+                {
+                    if (match.Groups[4].Value == "s")
+                    {
+                        sbyte byteValue = Convert.ToSByte(match.Groups[3].Value, offsetBase);
+                        if (match.Groups[1].Value == "-")
+                            byteValue *= -1;
+                        mem.SafeWrite(address, byteValue);
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Wrote sbyte {byteValue} as value of {name} at 0x{address:X}");
+                    }
+                    else
+                    {
+                        byte byteValue = Convert.ToByte(match.Groups[3].Value, offsetBase);
+                        mem.SafeWrite(address, byteValue);
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Wrote ubyte {byteValue} as value of {name} at 0x{address:X}");
+                    }
+                    return;
+                }
+                catch { }
+            }
             match = Regex.Match(value, @"^([+-])?(0x|0b)?([0-9A-Fa-f]+)(u)?l$");
             if (match.Success)
             {
