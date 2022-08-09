@@ -2,7 +2,7 @@
   "ModId": "p4gpc.inaba",
   "ModName": "Inaba Exe Patcher",
   "ModAuthor": "Tekka",
-  "ModVersion": "1.3.1",
+  "ModVersion": "2.0.0",
   "ModDescription": "Simple patcher to modify contents in P4G.exe at startup",
   "ModDll": "p4gpc.inaba.dll",
   "ModIcon": "Preview.png",
