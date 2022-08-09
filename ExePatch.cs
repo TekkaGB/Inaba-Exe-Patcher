@@ -150,7 +150,20 @@ namespace p4gpc.inaba
 
         private void SinglePatchEx(string filePath)
         {
-            List<ExPatch> patches = ParseExPatch(filePath);
+            (List<ExPatch> patches, Dictionary<string, string> constants) = ParseExPatch(filePath);
+            foreach(var constant in constants)
+            {
+                mStartupScanner.AddMainModuleScan(constant.Value, result =>
+                {
+                    if(!result.Found)
+                    {
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Couldn't find address for const {constant.Value}, it will not be replaced", Color.Red);
+                        return;
+                    }
+
+                    FillInConstant(patches, constant.Key, (result.Offset + (int)mBaseAddr).ToString());
+                });
+            }
             foreach (var patch in patches)
             {
                 mStartupScanner.AddMainModuleScan(patch.Pattern, (result) =>
@@ -230,8 +243,8 @@ namespace p4gpc.inaba
         /// Parses all of the patches from an expatch file
         /// </summary>
         /// <param name="filePath">The path to the expatch file</param>
-        /// <returns>A list of all of the found patches in the file</returns>
-        private List<ExPatch> ParseExPatch(string filePath)
+        /// <returns>A tuple containing a list of all of the found patches in the file and a dictionary of all constants that need to be scanned for</returns>
+        private (List<ExPatch>, Dictionary<string, string>) ParseExPatch(string filePath)
         {
             List<ExPatch> patches = new List<ExPatch>();
             bool startPatch = false;
@@ -244,6 +257,7 @@ namespace p4gpc.inaba
             bool padNull = true;
             Dictionary<string, IntPtr> variables = new();
             Dictionary<string, string> constants = new();
+            Dictionary<string, string> scanConstants = new();
 
             foreach (var rawLine in File.ReadLines(filePath))
             {
@@ -319,12 +333,21 @@ namespace p4gpc.inaba
                 if (constantMatch.Success)
                 {
                     string name = constantMatch.Groups[1].Value;
-                    if (constants.ContainsKey(name))
+                    if (constants.ContainsKey(name) || scanConstants.ContainsKey(name))
                     {
                         mLogger.WriteLine($"[Inaba Exe Patcher] Constant {name} in {Path.GetFileName(filePath)} already exists, ignoring duplicate declaration of it");
                         continue;
                     }
-                    constants.Add(name, constantMatch.Groups[2].Value);
+                    string constValue = constantMatch.Groups[2].Value;
+                    var scanMatch = Regex.Match(constValue, @"scan\((.*)\)", RegexOptions.IgnoreCase);
+                    if (scanMatch.Success)
+                    {
+                        scanConstants.Add(name, scanMatch.Groups[1].Value);
+                    }
+                    else
+                    {
+                        constants.Add(name, constantMatch.Groups[2].Value);
+                    }
                     continue;
                 }
 
@@ -431,7 +454,7 @@ namespace p4gpc.inaba
             if (startReplacement || startPatch)
                 SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, ref padNull, startReplacement);
             FillInVariables(patches, variables, constants);
-            return patches;
+            return (patches, scanConstants);
         }
 
         private void SaveCurrentPatch(List<string> currentPatch, List<ExPatch> patches, string patchName, ref string pattern, ref string order, ref int offset, ref bool padNull, bool isReplacement)
@@ -447,6 +470,23 @@ namespace p4gpc.inaba
             order = "";
             offset = 0;
             padNull = true;
+        }
+
+        /// <summary>
+        /// Replaces any constant definitions with their value
+        /// </summary>
+        /// <param name="patches">A list patches to replace the constant in</param>
+        /// <param name="name">The name of the constant</param>
+        /// <param name="value">The value of the constant</param>
+        private void FillInConstant(List<ExPatch> patches, string name, string value)
+        {
+            foreach(var patch in patches)
+            {
+                for(int i = 0; i < patch.Function.Length; i++)
+                {
+                    patch.Function[i] = patch.Function[i].Replace($"{{{name}}}", value);
+                }
+            }
         }
 
         /// <summary>
