@@ -7,6 +7,7 @@ using p4gpc.inaba.Configuration.Implementation;
 using System.IO;
 using Reloaded.Memory.SigScan.ReloadedII.Interfaces;
 using System.Diagnostics;
+using System.Drawing;
 
 namespace p4gpc.inaba
 {
@@ -50,8 +51,16 @@ namespace p4gpc.inaba
 
             _modLoader = (IModLoader)loader;
             _logger = (ILogger)_modLoader.GetLogger();
-            _modLoader.GetController<IReloadedHooks>().TryGetTarget(out _hooks);
-            _modLoader.GetController<IStartupScanner>().TryGetTarget(out var startupScanner);
+            if(!_modLoader.GetController<IReloadedHooks>().TryGetTarget(out _hooks))
+            {
+                _logger.WriteLine($"[Inaba Exe Patcher] Unable to get controller for Reloaded Hooks, aborting initialisation", Color.Red);
+                return;
+            }
+            if (!_modLoader.GetController<IStartupScanner>().TryGetTarget(out var startupScanner))
+            {
+                _logger.WriteLine($"[Inaba Exe Patcher] Unable to get controller for Reloaded SigScan Library, aborting initialisation", Color.Red);
+                return;
+            }
 
             // Your config file is in Config.json.
             // Need a different name, format or more configurations? Modify the `Configurator`.
