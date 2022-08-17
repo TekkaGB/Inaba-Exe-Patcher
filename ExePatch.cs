@@ -26,6 +26,7 @@ namespace p4gpc.inaba
         private readonly Process mProc;
         private readonly IntPtr mBaseAddr;
         private IReloadedHooks mHooks;
+        private List<IAsmHook> mAsmHooks;
 
         public ExePatch(ILogger logger, IStartupScanner startupScanner, Config config, IReloadedHooks hooks)
         {
@@ -36,6 +37,7 @@ namespace p4gpc.inaba
             mProc = Process.GetCurrentProcess();
             mBaseAddr = mProc.MainModule.BaseAddress;
             mem = new Memory();
+            mAsmHooks = new List<IAsmHook>();
         }
 
         private void SinglePatch(string filePath)
@@ -148,7 +150,20 @@ namespace p4gpc.inaba
 
         private void SinglePatchEx(string filePath)
         {
-            List<ExPatch> patches = ParseExPatch(filePath);
+            (List<ExPatch> patches, Dictionary<string, string> constants) = ParseExPatch(filePath);
+            foreach(var constant in constants)
+            {
+                mStartupScanner.AddMainModuleScan(constant.Value, result =>
+                {
+                    if(!result.Found)
+                    {
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Couldn't find address for const {constant.Value}, it will not be replaced", Color.Red);
+                        return;
+                    }
+
+                    FillInConstant(patches, constant.Key, (result.Offset + (int)mBaseAddr).ToString());
+                });
+            }
             foreach (var patch in patches)
             {
                 mStartupScanner.AddMainModuleScan(patch.Pattern, (result) =>
@@ -181,22 +196,20 @@ namespace p4gpc.inaba
                 mLogger.WriteLine($"[Inaba Exe Patcher] Executing {patch.Name} function after original");
                 order = AsmHookBehaviour.ExecuteAfter;
             }
-            else if (patch.ExecutionOrder == "only")
+            else if (patch.ExecutionOrder == "only" || patch.ExecutionOrder == "")
             {
                 mLogger.WriteLine($"[Inaba Exe Patcher] Replacing original {patch.Name} function");
                 order = AsmHookBehaviour.DoNotExecuteOriginal;
             }
-            else if (patch.ExecutionOrder != "")
+            else
             {
                 mLogger.WriteLine($"[Inaba Exe Patcher] Unknown execution order {patch.ExecutionOrder}, using default (only). Valid orders are before, after and only");
+                order = AsmHookBehaviour.DoNotExecuteOriginal;
             }
 
             try
             {
-                if (order != null)
-                    mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset + patch.Offset), (AsmHookBehaviour)order).Activate();
-                else
-                    mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset + patch.Offset)).Activate();
+                mAsmHooks.Add(mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset + patch.Offset), (AsmHookBehaviour)order).Activate());
             }
             catch (Exception ex)
             {
@@ -230,8 +243,8 @@ namespace p4gpc.inaba
         /// Parses all of the patches from an expatch file
         /// </summary>
         /// <param name="filePath">The path to the expatch file</param>
-        /// <returns>A list of all of the found patches in the file</returns>
-        private List<ExPatch> ParseExPatch(string filePath)
+        /// <returns>A tuple containing a list of all of the found patches in the file and a dictionary of all constants that need to be scanned for</returns>
+        private (List<ExPatch>, Dictionary<string, string>) ParseExPatch(string filePath)
         {
             List<ExPatch> patches = new List<ExPatch>();
             bool startPatch = false;
@@ -244,6 +257,7 @@ namespace p4gpc.inaba
             bool padNull = true;
             Dictionary<string, IntPtr> variables = new();
             Dictionary<string, string> constants = new();
+            Dictionary<string, string> scanConstants = new();
 
             foreach (var rawLine in File.ReadLines(filePath))
             {
@@ -319,12 +333,21 @@ namespace p4gpc.inaba
                 if (constantMatch.Success)
                 {
                     string name = constantMatch.Groups[1].Value;
-                    if (constants.ContainsKey(name))
+                    if (constants.ContainsKey(name) || scanConstants.ContainsKey(name))
                     {
                         mLogger.WriteLine($"[Inaba Exe Patcher] Constant {name} in {Path.GetFileName(filePath)} already exists, ignoring duplicate declaration of it");
                         continue;
                     }
-                    constants.Add(name, constantMatch.Groups[2].Value);
+                    string constValue = constantMatch.Groups[2].Value;
+                    var scanMatch = Regex.Match(constValue, @"scan\((.*)\)", RegexOptions.IgnoreCase);
+                    if (scanMatch.Success)
+                    {
+                        scanConstants.Add(name, scanMatch.Groups[1].Value);
+                    }
+                    else
+                    {
+                        constants.Add(name, constantMatch.Groups[2].Value);
+                    }
                     continue;
                 }
 
@@ -400,7 +423,7 @@ namespace p4gpc.inaba
                             mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse {value} as an int, double, float or string not creating search pattern");
                             continue;
                         }
-                        string stringValue = stringValueMatch.Groups[1].Value;
+                        string stringValue = Regex.Unescape(stringValueMatch.Groups[1].Value);
                         var bytes = Encoding.ASCII.GetBytes(stringValue);
                         pattern = BitConverter.ToString(bytes).Replace("-", " ");
                     }
@@ -431,7 +454,7 @@ namespace p4gpc.inaba
             if (startReplacement || startPatch)
                 SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, ref padNull, startReplacement);
             FillInVariables(patches, variables, constants);
-            return patches;
+            return (patches, scanConstants);
         }
 
         private void SaveCurrentPatch(List<string> currentPatch, List<ExPatch> patches, string patchName, ref string pattern, ref string order, ref int offset, ref bool padNull, bool isReplacement)
@@ -450,13 +473,30 @@ namespace p4gpc.inaba
         }
 
         /// <summary>
+        /// Replaces any constant definitions with their value
+        /// </summary>
+        /// <param name="patches">A list patches to replace the constant in</param>
+        /// <param name="name">The name of the constant</param>
+        /// <param name="value">The value of the constant</param>
+        private void FillInConstant(List<ExPatch> patches, string name, string value)
+        {
+            foreach(var patch in patches)
+            {
+                for(int i = 0; i < patch.Function.Length; i++)
+                {
+                    patch.Function[i] = patch.Function[i].Replace($"{{{name}}}", value);
+                }
+            }
+        }
+
+        /// <summary>
         /// Replaces any variable and constant declarations in functions (such as {variableName}) with their actual addresses
         /// </summary>
         /// <param name="patches">A list of patches to replace the variables in</param>
         /// <param name="variables">A Dictionary where the key is the variable name and the value is the variable address</param>
         private void FillInVariables(List<ExPatch> patches, Dictionary<string, IntPtr> variables, Dictionary<string, string> constants)
         {
-            if (variables.Count == 0)
+            if (variables.Count == 0 && constants.Count == 0)
                 return;
             foreach (var patch in patches)
                 for (int i = 0; i < patch.Function.Length; i++)
@@ -515,6 +555,37 @@ namespace p4gpc.inaba
                             intValue *= -1;
                         mem.SafeWrite(address, intValue);
                         mLogger.WriteLine($"[Inaba Exe Patcher] Wrote int {intValue} as value of {name} at 0x{address:X}");
+                    }
+                    return;
+                }
+                catch { }
+            }
+            match = Regex.Match(value, @"^([+-])?(0x|0b)?([0-9A-Fa-f]+)([su])b$");
+            if (match.Success)
+            {
+                int offsetBase = 10;
+                if (match.Groups[2].Success)
+                {
+                    if (match.Groups[2].Value == "0b")
+                        offsetBase = 2;
+                    else if (match.Groups[2].Value == "0x")
+                        offsetBase = 16;
+                }
+                try
+                {
+                    if (match.Groups[4].Value == "s")
+                    {
+                        sbyte byteValue = Convert.ToSByte(match.Groups[3].Value, offsetBase);
+                        if (match.Groups[1].Value == "-")
+                            byteValue *= -1;
+                        mem.SafeWrite(address, byteValue);
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Wrote sbyte {byteValue} as value of {name} at 0x{address:X}");
+                    }
+                    else
+                    {
+                        byte byteValue = Convert.ToByte(match.Groups[3].Value, offsetBase);
+                        mem.SafeWrite(address, byteValue);
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Wrote ubyte {byteValue} as value of {name} at 0x{address:X}");
                     }
                     return;
                 }
@@ -604,7 +675,7 @@ namespace p4gpc.inaba
                     mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse {value} as an int, double, float or string not writing a value for {name}");
                     return;
                 }
-                string stringValue = stringValueMatch.Groups[1].Value;
+                string stringValue = Regex.Unescape(stringValueMatch.Groups[1].Value);
                 var stringBytes = Encoding.ASCII.GetBytes(stringValue);
                 if (stringBytes.Length < stringLength)
                 {
