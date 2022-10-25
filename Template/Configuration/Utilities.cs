@@ -1,8 +1,6 @@
-﻿using System;
-using System.Diagnostics;
-using System.Threading;
+﻿using System.Diagnostics;
 
-namespace p4gpc.inaba.Configuration.Implementation
+namespace p4gpc.inaba.Template.Configuration
 {
     public class Utilities
     {
@@ -11,12 +9,12 @@ namespace p4gpc.inaba.Configuration.Implementation
         /// <param name="sleepTime">Amount of sleep per iteration/attempt.</param>
         /// <param name="token">Token that allows for cancellation of the task.</param>
         /// <exception cref="Exception">Timeout expired.</exception>
-        public static T TryGetValue<T>(Func<T> getValue, int timeout, int sleepTime, CancellationToken token = default)
+        public static T TryGetValue<T>(Func<T> getValue, int timeout, int sleepTime, CancellationToken token = default) where T : new()
         {
             Stopwatch watch = new Stopwatch();
             watch.Start();
             bool valueSet = false;
-            T value = default;
+            T value = new T();
 
             while (watch.ElapsedMilliseconds < timeout)
             {
