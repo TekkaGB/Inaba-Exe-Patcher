@@ -462,7 +462,7 @@ namespace p4gpc.inaba
             if (currentPatch.Count > 0)
             {
                 if (!isReplacement)
-                    currentPatch.Insert(0, "use32");
+                    currentPatch.Insert(0, Environment.Is64BitProcess ? "use64" : "use32");
                 patches.Add(new ExPatch(patchName, pattern, currentPatch.ToArray(), order, offset, isReplacement, padNull));
             }
             currentPatch.Clear();
