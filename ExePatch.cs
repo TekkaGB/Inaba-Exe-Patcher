@@ -24,7 +24,7 @@ namespace p4gpc.inaba
         private readonly Config mConfig;
 
         private readonly Process mProc;
-        private readonly IntPtr mBaseAddr;
+        private readonly nuint mBaseAddr;
         private IReloadedHooks mHooks;
         private List<IAsmHook> mAsmHooks;
 
@@ -35,7 +35,7 @@ namespace p4gpc.inaba
             mStartupScanner = startupScanner;
             mHooks = hooks;
             mProc = Process.GetCurrentProcess();
-            mBaseAddr = mProc.MainModule.BaseAddress;
+            mBaseAddr = (nuint)(nint)mProc.MainModule.BaseAddress;
             mem = new Memory();
             mAsmHooks = new List<IAsmHook>();
         }
@@ -85,7 +85,7 @@ namespace p4gpc.inaba
                 {
                     if (result.Found)
                     {
-                        mem.SafeWriteRaw(mBaseAddr + result.Offset, fileContents);
+                        mem.SafeWriteRaw(mBaseAddr + (nuint)result.Offset, fileContents);
                         mLogger.WriteLine($"[Inaba Exe Patcher] Successfully found and overwrote pattern in {fileName}");
                     }
                     else
@@ -209,7 +209,7 @@ namespace p4gpc.inaba
 
             try
             {
-                mAsmHooks.Add(mHooks.CreateAsmHook(patch.Function, (long)(mBaseAddr + result.Offset + patch.Offset), (AsmHookBehaviour)order).Activate());
+                mAsmHooks.Add(mHooks.CreateAsmHook(patch.Function, (int)mBaseAddr + result.Offset + patch.Offset, (AsmHookBehaviour)order).Activate());
             }
             catch (Exception ex)
             {
@@ -219,7 +219,7 @@ namespace p4gpc.inaba
                     mLogger.WriteLine(line);
                 return;
             }
-            mLogger.WriteLine($"[Inaba Exe Patcher] Applied patch {patch.Name} from {Path.GetFileName(filePath)} at 0x{mBaseAddr + result.Offset + patch.Offset:X}");
+            mLogger.WriteLine($"[Inaba Exe Patcher] Applied patch {patch.Name} from {Path.GetFileName(filePath)} at 0x{(int)mBaseAddr + result.Offset + patch.Offset:X}");
         }
 
         private void ReplacementPatch(ExPatch patch, PatternScanResult result, string filePath)
@@ -235,8 +235,8 @@ namespace p4gpc.inaba
             int replacementLength = 0;
             if (patch.PadNull)
                 replacementLength = patch.Pattern.Replace(" ", "").Length / 2;
-            WriteValue(replacement, mBaseAddr + result.Offset + patch.Offset, patch.Name, replacementLength);
-            mLogger.WriteLine($"[Inaba Exe Patcher] Applied replacement {patch.Name} from {Path.GetFileName(filePath)} at 0x{mBaseAddr + result.Offset + patch.Offset:X}");
+            WriteValue(replacement, mBaseAddr + (nuint)result.Offset + (nuint)patch.Offset, patch.Name, replacementLength);
+            mLogger.WriteLine($"[Inaba Exe Patcher] Applied replacement {patch.Name} from {Path.GetFileName(filePath)} at 0x{(int)mBaseAddr + result.Offset + patch.Offset:X}");
         }
 
         /// <summary>
@@ -255,7 +255,7 @@ namespace p4gpc.inaba
             string order = "";
             int offset = 0;
             bool padNull = true;
-            Dictionary<string, IntPtr> variables = new();
+            Dictionary<string, nuint> variables = new();
             Dictionary<string, string> constants = new();
             Dictionary<string, string> scanConstants = new();
 
@@ -315,7 +315,7 @@ namespace p4gpc.inaba
                     }
                     try
                     {
-                        IntPtr variableAddress = mem.Allocate(length);
+                        nuint variableAddress = mem.Allocate(length);
                         mLogger.WriteLine($"[Inaba Exe Patcher] Allocated {length} byte{(length != 1 ? "s" : "")} for {name} at 0x{variableAddress:X}");
                         if (variableMatch.Groups[3].Success)
                             WriteValue(variableMatch.Groups[3].Value, variableAddress, name, 0);
@@ -494,7 +494,7 @@ namespace p4gpc.inaba
         /// </summary>
         /// <param name="patches">A list of patches to replace the variables in</param>
         /// <param name="variables">A Dictionary where the key is the variable name and the value is the variable address</param>
-        private void FillInVariables(List<ExPatch> patches, Dictionary<string, IntPtr> variables, Dictionary<string, string> constants)
+        private void FillInVariables(List<ExPatch> patches, Dictionary<string, nuint> variables, Dictionary<string, string> constants)
         {
             if (variables.Count == 0 && constants.Count == 0)
                 return;
@@ -526,7 +526,7 @@ namespace p4gpc.inaba
         /// <param name="address">The address to write to</param>
         /// <param name="name">The name of the variable this is for</param>
         /// <param name="stringLength">The length of the string that should be written, if <paramref name="value"/> is shorter than this it will be padded with null characters. This has no effect if <paramref name="value"/> is not written as a string</param>
-        private void WriteValue(string value, IntPtr address, string name, int stringLength)
+        private void WriteValue(string value, nuint address, string name, int stringLength)
         {
             Match match;
             match = Regex.Match(value, @"^([+-])?(0x|0b)?([0-9A-Fa-f]+)(u)?$");
