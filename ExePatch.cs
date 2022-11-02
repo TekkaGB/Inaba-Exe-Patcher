@@ -93,18 +93,18 @@ namespace p4gpc.inaba
                 });
         }
 
-        public void Patch()
+        public void Patch(string patchPath)
         {
             List<string> patchPriorityList = new List<string>();
             // Add main directory as last entry for least priority
-            patchPriorityList.Add($@"mods/patches");
+            patchPriorityList.Add(patchPath);
 
             // Add every other directory
-            foreach (var dir in Directory.EnumerateDirectories(@"mods/patches"))
+            foreach (var dir in Directory.EnumerateDirectories(patchPath))
             {
                 var name = Path.GetFileName(dir);
 
-                patchPriorityList.Add($@"mods/patches/{name}");
+                patchPriorityList.Add($@"{patchPath}{Path.DirectorySeparatorChar}{name}");
             }
 
             // Reverse order of config patch list so that the higher priorities are moved to the end
@@ -114,10 +114,10 @@ namespace p4gpc.inaba
             foreach (var dir in revEnabledPatches)
             {
                 var name = Path.GetFileName(dir);
-                if (patchPriorityList.Contains($@"mods/patches/{name}", StringComparer.InvariantCultureIgnoreCase))
+                if (patchPriorityList.Contains($@"{patchPath}{Path.DirectorySeparatorChar}{name}", StringComparer.InvariantCultureIgnoreCase))
                 {
-                    patchPriorityList.Remove($@"mods/patches/{name}");
-                    patchPriorityList.Add($@"mods/patches/{name}");
+                    patchPriorityList.Remove($@"{patchPath}{Path.DirectorySeparatorChar}{name}");
+                    patchPriorityList.Add($@"{patchPath}{Path.DirectorySeparatorChar}{name}");
                 }
             }
 
@@ -151,11 +151,11 @@ namespace p4gpc.inaba
         private void SinglePatchEx(string filePath)
         {
             (List<ExPatch> patches, Dictionary<string, string> constants) = ParseExPatch(filePath);
-            foreach(var constant in constants)
+            foreach (var constant in constants)
             {
                 mStartupScanner.AddMainModuleScan(constant.Value, result =>
                 {
-                    if(!result.Found)
+                    if (!result.Found)
                     {
                         mLogger.WriteLine($"[Inaba Exe Patcher] Couldn't find address for const {constant.Value}, it will not be replaced", Color.Red);
                         return;
@@ -207,18 +207,7 @@ namespace p4gpc.inaba
                 order = AsmHookBehaviour.DoNotExecuteOriginal;
             }
 
-            try
-            {
-                mAsmHooks.Add(mHooks.CreateAsmHook(patch.Function, (int)mBaseAddr + result.Offset + patch.Offset, (AsmHookBehaviour)order).Activate());
-            }
-            catch (Exception ex)
-            {
-                mLogger.WriteLine($"[Inaba Exe Patcher] Error creating hook for {patch.Name}: {ex.Message}");
-                mLogger.WriteLine($"[Inaba Exe Patcher] Function dump:");
-                foreach (var line in patch.Function)
-                    mLogger.WriteLine(line);
-                return;
-            }
+            mAsmHooks.Add(mHooks.CreateAsmHook(patch.Function, (long)mBaseAddr + result.Offset + patch.Offset, (AsmHookBehaviour)order).Activate());
             mLogger.WriteLine($"[Inaba Exe Patcher] Applied patch {patch.Name} from {Path.GetFileName(filePath)} at 0x{(int)mBaseAddr + result.Offset + patch.Offset:X}");
         }
 
@@ -480,9 +469,9 @@ namespace p4gpc.inaba
         /// <param name="value">The value of the constant</param>
         private void FillInConstant(List<ExPatch> patches, string name, string value)
         {
-            foreach(var patch in patches)
+            foreach (var patch in patches)
             {
-                for(int i = 0; i < patch.Function.Length; i++)
+                for (int i = 0; i < patch.Function.Length; i++)
                 {
                     patch.Function[i] = patch.Function[i].Replace($"{{{name}}}", value);
                 }

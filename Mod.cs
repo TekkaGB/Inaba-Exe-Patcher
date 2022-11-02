@@ -3,6 +3,8 @@ using p4gpc.inaba.Template;
 using Reloaded.Hooks.ReloadedII.Interfaces;
 using Reloaded.Memory.SigScan.ReloadedII.Interfaces;
 using Reloaded.Mod.Interfaces;
+using Reloaded.Mod.Interfaces.Internal;
+using System.Diagnostics;
 using System.Drawing;
 
 namespace p4gpc.inaba
@@ -43,6 +45,8 @@ namespace p4gpc.inaba
         /// </summary>
         private readonly IModConfig _modConfig;
 
+        private ExePatch? _exePatcher;
+
         public Mod(ModContext context)
         {
             _modLoader = context.ModLoader;
@@ -71,14 +75,35 @@ namespace p4gpc.inaba
                 return;
             }
 
+            _exePatcher = new ExePatch(_logger, startupScanner, _configuration, _hooks);
+
             string patchPath = $"mods{Path.DirectorySeparatorChar}patches";
 
             if (Directory.Exists(patchPath))
             {
-                using var exePatcher = new ExePatch(_logger, startupScanner, _configuration, _hooks);
-                exePatcher.Patch();
+                _exePatcher.Patch(patchPath);
+            }
+
+            _modLoader.ModLoading += ModLoading;
+            _modLoader.OnModLoaderInitialized += ModLoaderInitialised;
+        }
+
+        private void ModLoaderInitialised()
+        {
+            _modLoader.ModLoaded -= ModLoading;
+        }
+
+        private void ModLoading(IModV1 mod, IModConfigV1 modConfig)
+        {
+            if(modConfig.ModDependencies.Contains(_modConfig.ModId))
+            {
+                string modDir = _modLoader.GetDirectoryForModId(modConfig.ModId);
+                if (Directory.Exists($"{modDir}{Path.DirectorySeparatorChar}InabaPatches"))
+                    _exePatcher!.Patch($"{modDir}{Path.DirectorySeparatorChar}InabaPatches");
             }
         }
+
+        
 
         #region Standard Overrides
         public override void ConfigurationUpdated(Config configuration)
