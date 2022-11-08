@@ -62,12 +62,6 @@ namespace p4gpc.inaba
             // If you want to implement e.g. unload support in your mod,
             // and some other neat features, override the methods in ModBase.
 
-            var hooksController = _modLoader.GetController<IReloadedHooks>();
-            if (hooksController == null || !hooksController.TryGetTarget(out _hooks))
-            {
-                _logger.WriteLine($"[Inaba Exe Patcher] Unable to get controller for Reloaded Hooks, aborting initialisation", Color.Red);
-                return;
-            }
             var startupScannerController = _modLoader.GetController<IStartupScanner>();
             if (startupScannerController == null || !startupScannerController.TryGetTarget(out var startupScanner))
             {
