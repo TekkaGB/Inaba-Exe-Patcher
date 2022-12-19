@@ -219,7 +219,7 @@ namespace p4gpc.inaba
                 mLogger.WriteLine($"[Inaba Exe Patcher] Function dump: \n{string.Join("\n", patch.Function)}", Color.Red);
                 return;
             }
-            mLogger.WriteLine($"[Inaba Exe Patcher] Applied patch {patch.Name} from {Path.GetFileName(filePath)} at 0x{(int)mBaseAddr + result.Offset + patch.Offset:X}");
+            mLogger.WriteLine($"[Inaba Exe Patcher] Applied patch {patch.Name} from {Path.GetFileName(filePath)} at 0x{(nuint)mBaseAddr +(nuint)result.Offset + (nuint)patch.Offset:X}");
         }
 
         private void ReplacementPatch(ExPatch patch, PatternScanResult result, string filePath)
