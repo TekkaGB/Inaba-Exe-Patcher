@@ -207,7 +207,15 @@ namespace p4gpc.inaba
                 order = AsmHookBehaviour.DoNotExecuteOriginal;
             }
 
-            mAsmHooks.Add(mHooks.CreateAsmHook(patch.Function, (long)mBaseAddr + result.Offset + patch.Offset, (AsmHookBehaviour)order).Activate());
+            try
+            {
+                mAsmHooks.Add(mHooks.CreateAsmHook(patch.Function, (long)mBaseAddr + result.Offset + patch.Offset, (AsmHookBehaviour)order).Activate());
+            } catch(Exception e)
+            {
+                mLogger.WriteLine($"[Inaba Exe Patcher] Error while applying {patch.Name} patch: {e.Message}", Color.Red);
+                mLogger.WriteLine($"[Inaba Exe Patcher] Function dump: \n{string.Join("\n", patch.Function)}", Color.Red);
+                return;
+            }
             mLogger.WriteLine($"[Inaba Exe Patcher] Applied patch {patch.Name} from {Path.GetFileName(filePath)} at 0x{(int)mBaseAddr + result.Offset + patch.Offset:X}");
         }
 
@@ -225,7 +233,7 @@ namespace p4gpc.inaba
             if (patch.PadNull)
                 replacementLength = patch.Pattern.Replace(" ", "").Length / 2;
             WriteValue(replacement, mBaseAddr + (nuint)result.Offset + (nuint)patch.Offset, patch.Name, replacementLength);
-            mLogger.WriteLine($"[Inaba Exe Patcher] Applied replacement {patch.Name} from {Path.GetFileName(filePath)} at 0x{(int)mBaseAddr + result.Offset + patch.Offset:X}");
+            mLogger.WriteLine($"[Inaba Exe Patcher] Applied replacement {patch.Name} from {Path.GetFileName(filePath)} at 0x{mBaseAddr + (nuint)result.Offset + (nuint)patch.Offset:X}");
         }
 
         /// <summary>
