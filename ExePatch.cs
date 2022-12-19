@@ -13,6 +13,7 @@ using Reloaded.Hooks.Definitions;
 using Reloaded.Hooks.Definitions.Enums;
 using System.Drawing;
 using Reloaded.Memory.Sigscan.Definitions.Structs;
+using System.Globalization;
 
 namespace p4gpc.inaba
 {
@@ -27,6 +28,8 @@ namespace p4gpc.inaba
         private readonly nuint mBaseAddr;
         private IReloadedHooks mHooks;
         private List<IAsmHook> mAsmHooks;
+
+        private CultureInfo culture = new CultureInfo("en-AU"); // I'm Australian, deal with it
 
         public ExePatch(ILogger logger, IStartupScanner startupScanner, Config config, IReloadedHooks hooks)
         {
@@ -300,7 +303,7 @@ namespace p4gpc.inaba
                     int length = 4;
                     if (variableMatch.Groups[2].Success)
                     {
-                        if (!int.TryParse(variableMatch.Groups[2].Value, out length))
+                        if (!int.TryParse(variableMatch.Groups[2].Value, NumberStyles.Number, culture, out length))
                             mLogger.WriteLine($"[Inaba Exe Patcher] Invalid variable length \"{variableMatch.Groups[2].Value}\" defaulting to length of 4 bytes");
                     }
                     else
@@ -397,17 +400,17 @@ namespace p4gpc.inaba
                 if (searchMatch.Success)
                 {
                     string value = searchMatch.Groups[1].Value;
-                    if (int.TryParse(value, out int intValue))
+                    if (int.TryParse(value, NumberStyles.Number, culture, out int intValue))
                     {
                         var bytes = BitConverter.GetBytes(intValue);
                         pattern = BitConverter.ToString(bytes).Replace("-", " ");
                     }
-                    else if (Regex.IsMatch(value, @"[0-9]+f") && float.TryParse(value, out float floatValue))
+                    else if (Regex.IsMatch(value, @"[0-9]+f") && float.TryParse(value, NumberStyles.Number, culture, out float floatValue))
                     {
                         var bytes = BitConverter.GetBytes(floatValue);
                         pattern = BitConverter.ToString(bytes).Replace("-", " ");
                     }
-                    else if (double.TryParse(value, out double doubleValue))
+                    else if (double.TryParse(value, NumberStyles.Number, culture, out double doubleValue))
                     {
                         var bytes = BitConverter.GetBytes(doubleValue);
                         pattern = BitConverter.ToString(bytes).Replace("-", " ");
@@ -651,7 +654,7 @@ namespace p4gpc.inaba
                 catch { }
             }
             match = Regex.Match(value, @"^([+-])?([0-9]+(?:\.[0-9]+)?)f$");
-            if (match.Success && float.TryParse(match.Groups[2].Value, out float floatValue))
+            if (match.Success && float.TryParse(match.Groups[2].Value, NumberStyles.Number, culture, out float floatValue))
             {
                 if (match.Groups[1].Success)
                     floatValue *= -1;
@@ -659,7 +662,7 @@ namespace p4gpc.inaba
                 mLogger.WriteLine($"[Inaba Exe Patcher] Wrote float {floatValue} as value of {name} at 0x{address:X}");
                 return;
             }
-            if (double.TryParse(value.Replace("d", ""), out double doubleValue))
+            if (double.TryParse(value.Replace("d", ""), NumberStyles.Number, culture, out double doubleValue))
             {
                 mem.SafeWrite(address, doubleValue);
                 mLogger.WriteLine($"[Inaba Exe Patcher] Wrote double {doubleValue} as value of {name} at 0x{address:X}");
