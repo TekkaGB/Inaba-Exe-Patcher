@@ -213,13 +213,14 @@ namespace p4gpc.inaba
             try
             {
                 mAsmHooks.Add(mHooks.CreateAsmHook(patch.Function, (long)mBaseAddr + result.Offset + patch.Offset, (AsmHookBehaviour)order).Activate());
-            } catch(Exception e)
+            }
+            catch (Exception e)
             {
                 mLogger.WriteLine($"[Inaba Exe Patcher] Error while applying {patch.Name} patch: {e.Message}", Color.Red);
                 mLogger.WriteLine($"[Inaba Exe Patcher] Function dump: \n{string.Join("\n", patch.Function)}", Color.Red);
                 return;
             }
-            mLogger.WriteLine($"[Inaba Exe Patcher] Applied patch {patch.Name} from {Path.GetFileName(filePath)} at 0x{(nuint)mBaseAddr +(nuint)result.Offset + (nuint)patch.Offset:X}");
+            mLogger.WriteLine($"[Inaba Exe Patcher] Applied patch {patch.Name} from {Path.GetFileName(filePath)} at 0x{(nuint)mBaseAddr + (nuint)result.Offset + (nuint)patch.Offset:X}");
         }
 
         private void ReplacementPatch(ExPatch patch, PatternScanResult result, string filePath)
@@ -666,27 +667,44 @@ namespace p4gpc.inaba
             {
                 mem.SafeWrite(address, doubleValue);
                 mLogger.WriteLine($"[Inaba Exe Patcher] Wrote double {doubleValue} as value of {name} at 0x{address:X}");
+                return;
             }
-            else
+            match = Regex.Match(value, @"bytes\((.*)\)", RegexOptions.IgnoreCase);
+            if (match.Success)
             {
-                var stringValueMatch = Regex.Match(value, "\"(.*)\"");
-                if (!stringValueMatch.Success)
+                var byteMatch = Regex.Matches(match.Groups[1].Value, @"([0-9A-Fa-f]{2})");
+                if (byteMatch.Count == 0)
                 {
-                    mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse {value} as an int, double, float or string not writing a value for {name}");
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Found bytes identifier but no bytes. Bytes should be defined in hex such as bytes(EA 21 FB 8C E1)", Color.Red);
                     return;
                 }
-                string stringValue = Regex.Unescape(stringValueMatch.Groups[1].Value);
-                var stringBytes = Encoding.ASCII.GetBytes(stringValue);
-                if (stringBytes.Length < stringLength)
+                List<byte> bytes = new List<byte>();
+                foreach (Match m in byteMatch)
                 {
-                    List<byte> byteList = stringBytes.ToList();
-                    while (byteList.Count < stringLength)
-                        byteList.Add(0);
-                    stringBytes = byteList.ToArray();
+                    bytes.Add(Convert.ToByte(m.Value, 16));
                 }
-                mem.SafeWrite(address, stringBytes);
-                mLogger.WriteLine($"[Inaba Exe Patcher] Wrote string \"{stringValue}\" as value of {name} at 0x{address:X}");
+                mem.SafeWrite(address, bytes.ToArray());
+                mLogger.WriteLine($"[Inaba Exe Patcher] Wrote bytes {string.Join(" ", bytes.Select(b => b.ToString("X2")))} as value of {name} at 0x{address:X}");
+                return;
             }
+
+            var stringValueMatch = Regex.Match(value, "\"(.*)\"");
+            if (!stringValueMatch.Success)
+            {
+                mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse {value} as an int, double, float or string not writing a value for {name}");
+                return;
+            }
+            string stringValue = Regex.Unescape(stringValueMatch.Groups[1].Value);
+            var stringBytes = Encoding.ASCII.GetBytes(stringValue);
+            if (stringBytes.Length < stringLength)
+            {
+                List<byte> byteList = stringBytes.ToList();
+                while (byteList.Count < stringLength)
+                    byteList.Add(0);
+                stringBytes = byteList.ToArray();
+            }
+            mem.SafeWrite(address, stringBytes);
+            mLogger.WriteLine($"[Inaba Exe Patcher] Wrote string \"{stringValue}\" as value of {name} at 0x{address:X}");
         }
 
         /// <summary>
