@@ -11,9 +11,10 @@ namespace p4gpc.inaba
         // Pushes the value of an xmm register to the stack, saving it so it can be restored with PopXmm
         public static string PushXmm(int xmmNum)
         {
+            string rsp = Environment.Is64BitProcess ? "rsp" : "esp";
             return // Save an xmm register 
-                $"sub esp, 16\n" + // allocate space on stack
-                $"movdqu dqword [esp], xmm{xmmNum}\n";
+                $"sub {rsp}, 16\n" + // allocate space on stack
+                $"movdqu dqword [{rsp}], xmm{xmmNum}\n";
         }
 
         // Pushes all xmm registers (0-7) to the stack, saving them to be restored with PopXmm
@@ -30,16 +31,17 @@ namespace p4gpc.inaba
         // Pops the value of an xmm register to the stack, restoring it after being saved with PushXmm
         public static string PopXmm(int xmmNum)
         {
+            string rsp = Environment.Is64BitProcess ? "rsp" : "esp";
             return                 //Pop back the value from stack to xmm
-                $"movdqu xmm{xmmNum}, dqword [esp]\n" +
-                $"add esp, 16\n"; // re-align the stack
+                $"movdqu xmm{xmmNum}, dqword [{rsp}]\n" +
+                $"add {rsp}, 16\n"; // re-align the stack
         }
 
         // Pops all xmm registers (0-7) from the stack, restoring them after being saved with PushXmm
         public static string PopXmm()
         {
             StringBuilder sb = new StringBuilder();
-            for (int i = 7; i >= 0; i--)
+            for (int i = Environment.Is64BitProcess ? 15 : 7; i >= 0; i--)
             {
                 sb.Append(PopXmm(i));
             }
