@@ -267,9 +267,9 @@ namespace p4gpc.inaba
                 var patchMatch = Regex.Match(line, @"\[\s*patch\s*(?:\s+(.*?))?\s*\]", RegexOptions.IgnoreCase);
                 if (patchMatch.Success)
                 {
+                    SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, ref padNull, startReplacement);
                     startReplacement = false;
                     startPatch = true;
-                    SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, ref padNull, false);
                     if (patchMatch.Groups.Count > 1)
                         patchName = patchMatch.Groups[1].Value;
                     else
@@ -281,9 +281,9 @@ namespace p4gpc.inaba
                 var replacementMatch = Regex.Match(line, @"\[\s*replacement\s*(?:\s+(.*?))?\s*\]", RegexOptions.IgnoreCase);
                 if (replacementMatch.Success)
                 {
+                    SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, ref padNull, startReplacement);
                     startReplacement = true;
                     startPatch = false;
-                    SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, ref padNull, true);
                     if (replacementMatch.Groups.Count > 1)
                         patchName = replacementMatch.Groups[1].Value;
                     else
