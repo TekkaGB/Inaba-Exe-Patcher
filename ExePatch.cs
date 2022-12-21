@@ -178,11 +178,46 @@ namespace p4gpc.inaba
                         return;
                     }
 
+                    FillInPatchConstants(patch, result);
+
                     if (patch.IsReplacement)
                         ReplacementPatch(patch, result, filePath);
                     else
                         FunctionPatch(patch, result, filePath);
                 });
+            }
+        }
+
+        /// <summary>
+        /// Fill in constants that require the address of the patch (patchAddress, call, and jump)
+        /// </summary>
+        /// <param name="patch">The patch to fill constants in</param>
+        /// <param name="result">The result of a signature scan for the patch</param>
+        private void FillInPatchConstants(ExPatch patch, PatternScanResult result)
+        {
+            for (int i = 0; i < patch.Function.Length; i++)
+            {
+                patch.Function[i] = patch.Function[i].Replace("{patchAddress}", ((nuint)result.Offset + mBaseAddr).ToString());
+                patch.Function[i] = patch.Function[i].Replace("{replacementAddress}", ((nuint)result.Offset + mBaseAddr).ToString());
+
+                var callMatch = Regex.Match(patch.Function[i], @"{call\s+(.+)}", RegexOptions.IgnoreCase);
+                if (callMatch.Success)
+                {
+                    if (!nint.TryParse(callMatch.Groups[1].Value, NumberStyles.Number, culture, out nint address) && !nint.TryParse(callMatch.Groups[1].Value, NumberStyles.Number, culture, out address))
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse address {callMatch.Groups[1].Value} for call instruction");
+                    else
+                        patch.Function[i] = patch.Function[i].Replace(callMatch.Groups[0].Value, mHooks.Utilities.GetAbsoluteCallMnemonics(address, Environment.Is64BitProcess));
+                }
+
+                var jumpMatch = Regex.Match(patch.Function[i], @"{(?:jump|jmp)\s+(.+)}", RegexOptions.IgnoreCase);
+                if (jumpMatch.Success)
+                {
+                    if (!nint.TryParse(jumpMatch.Groups[1].Value, NumberStyles.Number, culture, out nint address) && !nint.TryParse(jumpMatch.Groups[1].Value, NumberStyles.HexNumber, culture, out address))
+                        mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse address {jumpMatch.Groups[1].Value} for jump instruction");
+                    else
+                        patch.Function[i] = patch.Function[i].Replace(jumpMatch.Groups[0].Value, mHooks.Utilities.GetAbsoluteJumpMnemonics(address, Environment.Is64BitProcess));
+                }
+
             }
         }
 
