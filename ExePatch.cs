@@ -164,7 +164,7 @@ namespace p4gpc.inaba
                         return;
                     }
 
-                    FillInConstant(patches, constant.Key, (result.Offset + (int)mBaseAddr).ToString());
+                    FillInConstant(patches, constant.Key, ((nuint)result.Offset + mBaseAddr).ToString());
                 });
             }
             foreach (var patch in patches)
