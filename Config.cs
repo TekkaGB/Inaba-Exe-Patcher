@@ -43,6 +43,13 @@ namespace p4gpc.inaba.Configuration
     {
         public override void Migrate(string oldDirectory, string newDirectory)
         {
+            // Delete old mod folders
+            if (Directory.Exists(Path.Combine(oldDirectory, "x86")))
+                Directory.Delete(Path.Combine(oldDirectory, "x86"), true);
+
+            if (Directory.Exists(Path.Combine(oldDirectory, "x64")))
+                Directory.Delete(Path.Combine(oldDirectory, "x64"), true);
+
             // Replace Config.json with your original config file name.
             TryMoveFile("Config.json");
 
