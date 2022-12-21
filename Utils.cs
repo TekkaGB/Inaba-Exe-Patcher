@@ -1,13 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace p4gpc.inaba
 {
     internal class Utils
-    {
+    {        
         // Pushes the value of an xmm register to the stack, saving it so it can be restored with PopXmm
         public static string PushXmm(int xmmNum)
         {
@@ -48,5 +50,31 @@ namespace p4gpc.inaba
             return sb.ToString();
         }
 
+        public static bool EvaluateExpression(string expression, out long sum)
+        {
+            sum = 0;
+            var matches = Regex.Matches(expression, @"([+-])?\s*(0x|0b)?([0-9a-f]+)");
+            bool success = false;
+            foreach(Match match in matches)
+            {
+                int offsetBase = 10;
+                if (match.Groups[2].Success)
+                {
+                    if (match.Groups[2].Value == "0b")
+                        offsetBase = 2;
+                    else if (match.Groups[2].Value == "0x")
+                        offsetBase = 16;
+                }
+
+                if (long.TryParse(match.Groups[3].Value, out var value))
+                {
+                    if (match.Groups[1].Success && match.Groups[1].Value == "-")
+                        value *= -1;
+                    sum += value;
+                    success = true;
+                }
+            }
+            return success;
+        }
     }
 }
