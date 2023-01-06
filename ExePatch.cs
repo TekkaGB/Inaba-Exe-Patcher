@@ -226,7 +226,8 @@ namespace p4gpc.inaba
 
         private void FunctionPatch(ExPatch patch, PatternScanResult result, string filePath, int index = 1, int memOffset = 0)
         {
-            if (patch.Indices.Count == 0 || patch.AllIndices || (patch.Indices.Count > 0 && patch.Indices.First() == index))
+            bool isCurrentIndex = patch.Indices.Count > 0 && patch.Indices.First() == index;
+            if (patch.Indices.Count == 0 || patch.AllIndices || isCurrentIndex)
             {
                 AsmHookBehaviour? order = null;
                 if (patch.ExecutionOrder == "before")
@@ -263,15 +264,16 @@ namespace p4gpc.inaba
                 mLogger.WriteLine($"[Inaba Exe Patcher] Applied patch {patch.Name} from {Path.GetFileName(filePath)} at 0x{(nuint)mBaseAddr + (nuint)result.Offset + (nuint)patch.Offset:X}");
             }
 
+            if (isCurrentIndex)
+                patch.Indices.RemoveAt(0);
+
             if (patch.Indices.Count > 0 || patch.AllIndices)
             {
                 memOffset += result.Offset + patch.Pattern.Replace(" ", "").Length / 2;
                 result = ScanPattern(patch.Pattern, memOffset);
                 if (result.Found)
                 {
-                    if(!patch.AllIndices)
-                        patch.Indices.RemoveAt(0);
-                    FunctionPatch(patch, result, filePath, index + 1, memOffset);
+                    ReplacementPatch(patch, result, filePath, index + 1, memOffset);
                 }
             }
         }
@@ -283,8 +285,8 @@ namespace p4gpc.inaba
                 mLogger.WriteLine($"[Inaba Exe Patcher] No replacement value specified for {patch.Name} replacement, skipping it");
                 return;
             }
-
-            if (patch.Indices.Count == 0 || patch.AllIndices || (patch.Indices.Count > 0 && patch.Indices.First() == index))
+            bool isCurrentIndex = patch.Indices.Count > 0 && patch.Indices.First() == index;
+            if (patch.Indices.Count == 0 || patch.AllIndices || isCurrentIndex)
             {
                 string replacement = patch.Function.Last();
                 if (patch.Function.Count() > 1)
@@ -295,6 +297,9 @@ namespace p4gpc.inaba
                 WriteValue(replacement, mBaseAddr + (nuint)result.Offset + (nuint)patch.Offset, patch.Name, replacementLength);
                 mLogger.WriteLine($"[Inaba Exe Patcher] Applied replacement {patch.Name} from {Path.GetFileName(filePath)} at 0x{mBaseAddr + (nuint)result.Offset + (nuint)patch.Offset:X}");
             }
+            
+            if(isCurrentIndex)
+                patch.Indices.RemoveAt(0);
 
             if (patch.Indices.Count > 0 || patch.AllIndices)
             {
@@ -302,12 +307,6 @@ namespace p4gpc.inaba
                 result = ScanPattern(patch.Pattern, memOffset);
                 if (result.Found)
                 {
-                    if(!patch.AllIndices)
-                    {
-                        patch.Indices.RemoveAt(0);
-                        if (patch.Indices.Count == 0)
-                            return;
-                    }
                     ReplacementPatch(patch, result, filePath, index + 1, memOffset);
                 }
             }
@@ -569,6 +568,7 @@ namespace p4gpc.inaba
         {
             if (currentPatch.Count > 0)
             {
+                indices.Sort();
                 if (!isReplacement)
                     currentPatch.Insert(0, Environment.Is64BitProcess ? "use64" : "use32");
                 patches.Add(new ExPatch(patchName, pattern, currentPatch.ToArray(), order, offset, isReplacement, padNull, new List<int>(indices), allIndices));
