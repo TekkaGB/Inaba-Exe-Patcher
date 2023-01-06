@@ -34,8 +34,17 @@ namespace p4gpc.inaba
         /// If true when replacing values with strings the value will be padded with null characters up to the length of the search pattern
         /// </summary>
         public bool PadNull { get; set; }
+        /// <summary>
+        /// A list of indices to replace/patch at
+        /// This will cause Inaba to scan multiple times and replace/patch each duplicate of it at these indices
+        /// </summary>
+        public List<int> Indices { get; set; }
+        /// <summary>
+        /// If true all occurences of the pattern will be replaced/patched
+        /// </summary>
+        public bool AllIndices { get; set; }
 
-        public ExPatch(string name, string pattern, string[] function, string executionOrder, int offset, bool isReplacement, bool padNull)
+        public ExPatch(string name, string pattern, string[] function, string executionOrder, int offset, bool isReplacement, bool padNull, List<int> indices, bool allIndices)
         {
             Name = name;
             Pattern = pattern;
@@ -44,6 +53,8 @@ namespace p4gpc.inaba
             Offset = offset;
             IsReplacement = isReplacement;
             PadNull = padNull;
+            Indices = indices;
+            AllIndices = allIndices;
         }
     }
 }

@@ -14,6 +14,7 @@ using Reloaded.Hooks.Definitions.Enums;
 using System.Drawing;
 using Reloaded.Memory.Sigscan.Definitions.Structs;
 using System.Globalization;
+using Reloaded.Memory.Sigscan;
 
 namespace p4gpc.inaba
 {
@@ -223,58 +224,102 @@ namespace p4gpc.inaba
             }
         }
 
-        private void FunctionPatch(ExPatch patch, PatternScanResult result, string filePath)
+        private void FunctionPatch(ExPatch patch, PatternScanResult result, string filePath, int index = 1, int memOffset = 0)
         {
-            AsmHookBehaviour? order = null;
-            if (patch.ExecutionOrder == "before")
+            if (patch.Indices.Count == 0 || patch.AllIndices || (patch.Indices.Count > 0 && patch.Indices.First() == index))
             {
-                order = AsmHookBehaviour.ExecuteFirst;
-                mLogger.WriteLine($"[Inaba Exe Patcher] Executing {patch.Name} function before original");
-            }
-            else if (patch.ExecutionOrder == "after")
-            {
-                mLogger.WriteLine($"[Inaba Exe Patcher] Executing {patch.Name} function after original");
-                order = AsmHookBehaviour.ExecuteAfter;
-            }
-            else if (patch.ExecutionOrder == "only" || patch.ExecutionOrder == "")
-            {
-                mLogger.WriteLine($"[Inaba Exe Patcher] Replacing original {patch.Name} function");
-                order = AsmHookBehaviour.DoNotExecuteOriginal;
-            }
-            else
-            {
-                mLogger.WriteLine($"[Inaba Exe Patcher] Unknown execution order {patch.ExecutionOrder}, using default (only). Valid orders are before, after and only");
-                order = AsmHookBehaviour.DoNotExecuteOriginal;
+                AsmHookBehaviour? order = null;
+                if (patch.ExecutionOrder == "before")
+                {
+                    order = AsmHookBehaviour.ExecuteFirst;
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Executing {patch.Name} function before original");
+                }
+                else if (patch.ExecutionOrder == "after")
+                {
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Executing {patch.Name} function after original");
+                    order = AsmHookBehaviour.ExecuteAfter;
+                }
+                else if (patch.ExecutionOrder == "only" || patch.ExecutionOrder == "")
+                {
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Replacing original {patch.Name} function");
+                    order = AsmHookBehaviour.DoNotExecuteOriginal;
+                }
+                else
+                {
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Unknown execution order {patch.ExecutionOrder}, using default (only). Valid orders are before, after and only");
+                    order = AsmHookBehaviour.DoNotExecuteOriginal;
+                }
+
+                try
+                {
+                    mAsmHooks.Add(mHooks.CreateAsmHook(patch.Function, (long)mBaseAddr + result.Offset + patch.Offset, (AsmHookBehaviour)order).Activate());
+                }
+                catch (Exception e)
+                {
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Error while applying {patch.Name} patch: {e.Message}", Color.Red);
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Function dump: \n{string.Join("\n", patch.Function)}", Color.Red);
+                    return;
+                }
+                mLogger.WriteLine($"[Inaba Exe Patcher] Applied patch {patch.Name} from {Path.GetFileName(filePath)} at 0x{(nuint)mBaseAddr + (nuint)result.Offset + (nuint)patch.Offset:X}");
             }
 
-            try
+            if (patch.Indices.Count > 0 || patch.AllIndices)
             {
-                mAsmHooks.Add(mHooks.CreateAsmHook(patch.Function, (long)mBaseAddr + result.Offset + patch.Offset, (AsmHookBehaviour)order).Activate());
+                memOffset += result.Offset + patch.Pattern.Replace(" ", "").Length / 2;
+                result = ScanPattern(patch.Pattern, memOffset);
+                if (result.Found)
+                {
+                    if(!patch.AllIndices)
+                        patch.Indices.RemoveAt(0);
+                    FunctionPatch(patch, result, filePath, index + 1, memOffset);
+                }
             }
-            catch (Exception e)
-            {
-                mLogger.WriteLine($"[Inaba Exe Patcher] Error while applying {patch.Name} patch: {e.Message}", Color.Red);
-                mLogger.WriteLine($"[Inaba Exe Patcher] Function dump: \n{string.Join("\n", patch.Function)}", Color.Red);
-                return;
-            }
-            mLogger.WriteLine($"[Inaba Exe Patcher] Applied patch {patch.Name} from {Path.GetFileName(filePath)} at 0x{(nuint)mBaseAddr + (nuint)result.Offset + (nuint)patch.Offset:X}");
         }
 
-        private void ReplacementPatch(ExPatch patch, PatternScanResult result, string filePath)
+        private void ReplacementPatch(ExPatch patch, PatternScanResult result, string filePath, int index = 1, int memOffset = 0)
         {
             if (patch.Function.Count() == 0)
             {
                 mLogger.WriteLine($"[Inaba Exe Patcher] No replacement value specified for {patch.Name} replacement, skipping it");
                 return;
             }
-            string replacement = patch.Function.Last();
-            if (patch.Function.Count() > 1)
-                mLogger.WriteLine($"[Inaba Exe Patcher] Multiple replacement values specified for {patch.Name}, using last defined one ({replacement})");
-            int replacementLength = 0;
-            if (patch.PadNull)
-                replacementLength = patch.Pattern.Replace(" ", "").Length / 2;
-            WriteValue(replacement, mBaseAddr + (nuint)result.Offset + (nuint)patch.Offset, patch.Name, replacementLength);
-            mLogger.WriteLine($"[Inaba Exe Patcher] Applied replacement {patch.Name} from {Path.GetFileName(filePath)} at 0x{mBaseAddr + (nuint)result.Offset + (nuint)patch.Offset:X}");
+
+            if (patch.Indices.Count == 0 || patch.AllIndices || (patch.Indices.Count > 0 && patch.Indices.First() == index))
+            {
+                string replacement = patch.Function.Last();
+                if (patch.Function.Count() > 1)
+                    mLogger.WriteLine($"[Inaba Exe Patcher] Multiple replacement values specified for {patch.Name}, using last defined one ({replacement})");
+                int replacementLength = 0;
+                if (patch.PadNull)
+                    replacementLength = patch.Pattern.Replace(" ", "").Length / 2;
+                WriteValue(replacement, mBaseAddr + (nuint)result.Offset + (nuint)patch.Offset, patch.Name, replacementLength);
+                mLogger.WriteLine($"[Inaba Exe Patcher] Applied replacement {patch.Name} from {Path.GetFileName(filePath)} at 0x{mBaseAddr + (nuint)result.Offset + (nuint)patch.Offset:X}");
+            }
+
+            if (patch.Indices.Count > 0 || patch.AllIndices)
+            {
+                memOffset += result.Offset + patch.Pattern.Replace(" ", "").Length / 2;
+                result = ScanPattern(patch.Pattern, memOffset);
+                if (result.Found)
+                {
+                    if(!patch.AllIndices)
+                    {
+                        patch.Indices.RemoveAt(0);
+                        if (patch.Indices.Count == 0)
+                            return;
+                    }
+                    ReplacementPatch(patch, result, filePath, index + 1, memOffset);
+                }
+            }
+
+        }
+
+        private PatternScanResult ScanPattern(string pattern, int offset)
+        {
+            using var thisProcess = Process.GetCurrentProcess();
+            using var scanner = new Scanner(thisProcess, thisProcess.MainModule);
+            return scanner.FindPattern(pattern, offset);
+
         }
 
         /// <summary>
@@ -293,6 +338,8 @@ namespace p4gpc.inaba
             string order = "";
             int offset = 0;
             bool padNull = true;
+            List<int> indices = new();
+            bool allIndices = false;
             Dictionary<string, nuint> variables = new();
             Dictionary<string, string> constants = new();
             Dictionary<string, string> scanConstants = new();
@@ -304,7 +351,7 @@ namespace p4gpc.inaba
                 var patchMatch = Regex.Match(line, @"\[\s*patch\s*(?:\s+(.*?))?\s*\]", RegexOptions.IgnoreCase);
                 if (patchMatch.Success)
                 {
-                    SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, ref padNull, startReplacement);
+                    SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, ref padNull, ref allIndices, indices, startReplacement);
                     startReplacement = false;
                     startPatch = true;
                     if (patchMatch.Groups.Count > 1)
@@ -318,7 +365,7 @@ namespace p4gpc.inaba
                 var replacementMatch = Regex.Match(line, @"\[\s*replacement\s*(?:\s+(.*?))?\s*\]", RegexOptions.IgnoreCase);
                 if (replacementMatch.Success)
                 {
-                    SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, ref padNull, startReplacement);
+                    SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, ref padNull, ref allIndices, indices, startReplacement);
                     startReplacement = true;
                     startPatch = false;
                     if (replacementMatch.Groups.Count > 1)
@@ -485,29 +532,54 @@ namespace p4gpc.inaba
                         mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse {value} to a boolean value (true or false) leaving padNull unchanged");
                 }
 
+                var indexMatch = Regex.Match(line, @"^\s*index\s*=\s*(.+)", RegexOptions.IgnoreCase);
+                if (indexMatch.Success)
+                {
+                    if (indexMatch.Groups[1].Value.Trim().Equals("all", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        allIndices = true;
+                        continue;
+                    }
+                    foreach (var value in indexMatch.Groups[1].Value.Split(','))
+                    {
+                        if (!Utils.EvaluateExpression(value, out long index))
+                        {
+                            mLogger.WriteLine($"[Inaba Exe Patcher] Unable to parse {value} to an integer index, no index will be used");
+                        }
+                        else
+                        {
+                            indices.Add((int)index);
+                        }
+                    }
+                    continue;
+                }
+
                 // Add the line as a part of the patch's function
                 if (startPatch)
                     currentPatch.Add(line);
             }
             if (startReplacement || startPatch)
-                SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, ref padNull, startReplacement);
+                SaveCurrentPatch(currentPatch, patches, patchName, ref pattern, ref order, ref offset, ref padNull, ref allIndices, indices, startReplacement);
             FillInVariables(patches, variables, constants);
             return (patches, scanConstants);
         }
 
-        private void SaveCurrentPatch(List<string> currentPatch, List<ExPatch> patches, string patchName, ref string pattern, ref string order, ref int offset, ref bool padNull, bool isReplacement)
+        private void SaveCurrentPatch(List<string> currentPatch, List<ExPatch> patches, string patchName, ref string pattern, 
+            ref string order, ref int offset, ref bool padNull, ref bool allIndices, List<int> indices, bool isReplacement)
         {
             if (currentPatch.Count > 0)
             {
                 if (!isReplacement)
                     currentPatch.Insert(0, Environment.Is64BitProcess ? "use64" : "use32");
-                patches.Add(new ExPatch(patchName, pattern, currentPatch.ToArray(), order, offset, isReplacement, padNull));
+                patches.Add(new ExPatch(patchName, pattern, currentPatch.ToArray(), order, offset, isReplacement, padNull, new List<int>(indices), allIndices));
             }
             currentPatch.Clear();
+            indices.Clear();
             pattern = "";
             order = "";
             offset = 0;
             padNull = true;
+            allIndices = false;
         }
 
         /// <summary>
