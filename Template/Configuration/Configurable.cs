@@ -1,11 +1,9 @@
-﻿using System;
+﻿using Reloaded.Mod.Interfaces;
 using System.ComponentModel;
-using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Reloaded.Mod.Interfaces;
 
-namespace p4gpc.inaba.Configuration.Implementation
+namespace p4gpc.inaba.Template.Configuration
 {
     public class Configurable<TParentType> : IUpdatableConfigurable where TParentType : Configurable<TParentType>, new()
     {
@@ -24,7 +22,7 @@ namespace p4gpc.inaba.Configuration.Implementation
         /// Inside your event handler, replace the variable storing the configuration with the new one.
         /// </summary>
         [Browsable(false)]
-        public event Action<IUpdatableConfigurable> ConfigurationUpdated;
+        public event Action<IUpdatableConfigurable>? ConfigurationUpdated;
 
         /* Class Properties */
 
@@ -33,21 +31,21 @@ namespace p4gpc.inaba.Configuration.Implementation
         /// </summary>
         [JsonIgnore]
         [Browsable(false)]
-        public string FilePath { get; private set; }
+        public string? FilePath { get; private set; }
 
         /// <summary>
         /// The name of the configuration file.
         /// </summary>
         [JsonIgnore]
         [Browsable(false)]
-        public string ConfigName { get; private set; }
+        public string? ConfigName { get; private set; }
 
         /// <summary>
         /// Receives events on whenever the file is actively changed or updated.
         /// </summary>
         [JsonIgnore]
         [Browsable(false)]
-        private FileSystemWatcher ConfigWatcher { get; set; }
+        private FileSystemWatcher? ConfigWatcher { get; set; }
 
         /* Construction */
         public Configurable() { }
@@ -77,7 +75,7 @@ namespace p4gpc.inaba.Configuration.Implementation
         /// </summary>
         [JsonIgnore]
         [Browsable(false)]
-        public Action Save { get; private set; }
+        public Action? Save { get; private set; }
 
         /// <summary>
         /// Safety lock for when changed event gets raised twice on file save.
@@ -101,7 +99,7 @@ namespace p4gpc.inaba.Configuration.Implementation
         /// <returns></returns>
         private void MakeConfigWatcher()
         {
-            ConfigWatcher = new FileSystemWatcher(Path.GetDirectoryName(FilePath), Path.GetFileName(FilePath));
+            ConfigWatcher = new FileSystemWatcher(Path.GetDirectoryName(FilePath)!, Path.GetFileName(FilePath)!);
             ConfigWatcher.Changed += (sender, e) => OnConfigurationUpdated();
             ConfigWatcher.EnableRaisingEvents = true;
         }
@@ -115,7 +113,7 @@ namespace p4gpc.inaba.Configuration.Implementation
             {
                 // Load and copy events.
                 // Note: External program might still be writing to file while this is being executed, so we need to keep retrying.
-                var newConfig = Utilities.TryGetValue(() => ReadFrom(this.FilePath, this.ConfigName), 250, 2);
+                var newConfig = Utilities.TryGetValue(() => ReadFrom(FilePath!, ConfigName!), 250, 2);
                 newConfig.ConfigurationUpdated = ConfigurationUpdated;
 
                 // Disable events for this instance.
@@ -129,15 +127,16 @@ namespace p4gpc.inaba.Configuration.Implementation
         private void OnSave()
         {
             var parent = (TParentType)this;
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(parent, SerializerOptions));
+            File.WriteAllText(FilePath!, JsonSerializer.Serialize(parent, SerializerOptions));
         }
 
         /* Utility */
         private static TParentType ReadFrom(string filePath, string configName)
         {
-            var result = File.Exists(filePath)
+            var result = (File.Exists(filePath)
                 ? JsonSerializer.Deserialize<TParentType>(File.ReadAllBytes(filePath), SerializerOptions)
-                : new TParentType();
+                : new TParentType()) ?? new TParentType();
+
             result.Initialize(filePath, configName);
             return result;
         }
