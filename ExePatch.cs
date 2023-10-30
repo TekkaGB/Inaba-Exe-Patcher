@@ -15,12 +15,14 @@ using System.Drawing;
 using Reloaded.Memory.Sigscan.Definitions.Structs;
 using System.Globalization;
 using Reloaded.Memory.Sigscan;
+using Reloaded.Memory;
+using Reloaded.Memory.Interfaces;
 
 namespace p4gpc.inaba
 {
     public class ExePatch : IDisposable
     {
-        private readonly IMemory mem;
+        private readonly Memory mem;
         private readonly ILogger mLogger;
         private readonly IStartupScanner mStartupScanner;
         private readonly Config mConfig;
@@ -89,7 +91,7 @@ namespace p4gpc.inaba
                 {
                     if (result.Found)
                     {
-                        mem.SafeWriteRaw(mBaseAddr + (nuint)result.Offset, fileContents);
+                        mem.SafeWrite(mBaseAddr + (nuint)result.Offset, fileContents);
                         mLogger.WriteLine($"[Inaba Exe Patcher] Successfully found and overwrote pattern in {fileName}");
                     }
                     else
@@ -399,7 +401,7 @@ namespace p4gpc.inaba
                     }
                     try
                     {
-                        nuint variableAddress = mem.Allocate(length);
+                        nuint variableAddress = mem.Allocate((nuint)length).Address;
                         mLogger.WriteLine($"[Inaba Exe Patcher] Allocated {length} byte{(length != 1 ? "s" : "")} for {name} at 0x{variableAddress:X}");
                         if (variableMatch.Groups[3].Success)
                             WriteValue(variableMatch.Groups[3].Value, variableAddress, name, 0);
@@ -655,7 +657,7 @@ namespace p4gpc.inaba
                     if (match.Groups[4].Success)
                     {
                         uint intValue = Convert.ToUInt32(match.Groups[3].Value, offsetBase);
-                        mem.SafeWrite(address, intValue);
+                        mem.Write(address, intValue);
                         mLogger.WriteLine($"[Inaba Exe Patcher] Wrote uint {intValue} as value of {name} at 0x{address:X}");
                     }
                     else
@@ -663,7 +665,7 @@ namespace p4gpc.inaba
                         int intValue = Convert.ToInt32(match.Groups[3].Value, offsetBase);
                         if (match.Groups[1].Value == "-")
                             intValue *= -1;
-                        mem.SafeWrite(address, intValue);
+                        mem.Write(address, intValue);
                         mLogger.WriteLine($"[Inaba Exe Patcher] Wrote int {intValue} as value of {name} at 0x{address:X}");
                     }
                     return;
@@ -688,13 +690,13 @@ namespace p4gpc.inaba
                         sbyte byteValue = Convert.ToSByte(match.Groups[3].Value, offsetBase);
                         if (match.Groups[1].Value == "-")
                             byteValue *= -1;
-                        mem.SafeWrite(address, byteValue);
+                        mem.Write(address, byteValue);
                         mLogger.WriteLine($"[Inaba Exe Patcher] Wrote sbyte {byteValue} as value of {name} at 0x{address:X}");
                     }
                     else
                     {
                         byte byteValue = Convert.ToByte(match.Groups[3].Value, offsetBase);
-                        mem.SafeWrite(address, byteValue);
+                        mem.Write(address, byteValue);
                         mLogger.WriteLine($"[Inaba Exe Patcher] Wrote ubyte {byteValue} as value of {name} at 0x{address:X}");
                     }
                     return;
@@ -717,7 +719,7 @@ namespace p4gpc.inaba
                     if (match.Groups[4].Success)
                     {
                         ulong longValue = Convert.ToUInt64(match.Groups[3].Value, offsetBase);
-                        mem.SafeWrite(address, longValue);
+                        mem.Write(address, longValue);
                         mLogger.WriteLine($"[Inaba Exe Patcher] Wrote ulong {longValue} as value of {name} at 0x{address:X}");
                     }
                     else
@@ -725,7 +727,7 @@ namespace p4gpc.inaba
                         long longValue = Convert.ToInt64(match.Groups[3].Value, offsetBase);
                         if (match.Groups[1].Value == "-")
                             longValue *= -1;
-                        mem.SafeWrite(address, longValue);
+                        mem.Write(address, longValue);
                         mLogger.WriteLine($"[Inaba Exe Patcher] Wrote long {longValue} as value of {name} at 0x{address:X}");
                     }
                     return;
@@ -748,7 +750,7 @@ namespace p4gpc.inaba
                     if (match.Groups[4].Success)
                     {
                         ushort shortValue = Convert.ToUInt16(match.Groups[3].Value, offsetBase);
-                        mem.SafeWrite(address, shortValue);
+                        mem.Write(address, shortValue);
                         mLogger.WriteLine($"[Inaba Exe Patcher] Wrote ushort {shortValue} as value of {name} at 0x{address:X}");
                     }
                     else
@@ -756,7 +758,7 @@ namespace p4gpc.inaba
                         short shortValue = Convert.ToInt16(match.Groups[3].Value, offsetBase);
                         if (match.Groups[1].Value == "-")
                             shortValue *= -1;
-                        mem.SafeWrite(address, shortValue);
+                        mem.Write(address, shortValue);
                         mLogger.WriteLine($"[Inaba Exe Patcher] Wrote short {shortValue} as value of {name} at 0x{address:X}");
                     }
                     return;
@@ -768,13 +770,13 @@ namespace p4gpc.inaba
             {
                 if (match.Groups[1].Success)
                     floatValue *= -1;
-                mem.SafeWrite(address, floatValue);
+                mem.Write(address, floatValue);
                 mLogger.WriteLine($"[Inaba Exe Patcher] Wrote float {floatValue} as value of {name} at 0x{address:X}");
                 return;
             }
             if (double.TryParse(value.Replace("d", ""), NumberStyles.Number, culture, out double doubleValue))
             {
-                mem.SafeWrite(address, doubleValue);
+                mem.Write(address, doubleValue);
                 mLogger.WriteLine($"[Inaba Exe Patcher] Wrote double {doubleValue} as value of {name} at 0x{address:X}");
                 return;
             }
