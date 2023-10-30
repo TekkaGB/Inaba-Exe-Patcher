@@ -2,7 +2,7 @@
   "ModId": "p4gpc.inaba",
   "ModName": "Inaba Exe Patcher",
   "ModAuthor": "Tekka, AnimatedSwine37",
-  "ModVersion": "2.0.0",
+  "ModVersion": "3.0.2",
   "ModDescription": "Modify games at startup using simple patch files",
   "ModDll": "p4gpc.inaba.dll",
   "ModIcon": "Preview.png",
@@ -10,11 +10,24 @@
   "ModR2RManagedDll64": "",
   "ModNativeDll32": "",
   "ModNativeDll64": "",
+  "Tags": [],
+  "CanUnload": false,
+  "HasExports": false,
   "IsLibrary": false,
   "ReleaseMetadataFileName": "p4gpc.inaba.ReleaseMetadata.json",
-  "PluginData": {},
+  "PluginData": {
+    "NuGet": {
+      "AllowUpdateFromAnyRepository": false,
+      "DefaultRepositoryUrls": [
+        "http://packages.sewer56.moe:5000/v3/index.json"
+      ]
+    }
+  },
   "IsUniversalMod": true,
-  "ModDependencies": [ "reloaded.sharedlib.hooks", "Reloaded.Memory.SigScan.ReloadedII" ],
+  "ModDependencies": [
+    "Reloaded.Memory.SigScan.ReloadedII",
+    "reloaded.sharedlib.hooks"
+  ],
   "OptionalDependencies": [],
   "SupportedAppId": [],
   "ProjectUrl": "https://github.com/TekkaGB/Inaba-Exe-Patcher"
