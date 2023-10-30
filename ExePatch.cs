@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using p4gpc.inaba.Configuration;
 using System.Collections.Generic;
-using Reloaded.Memory.Sources;
 using Reloaded.Memory.SigScan.ReloadedII.Interfaces;
 using System.Text.RegularExpressions;
 using System.Text;
@@ -271,7 +270,7 @@ namespace p4gpc.inaba
 
             if (patch.Indices.Count > 0 || patch.AllIndices)
             {
-                memOffset += result.Offset + patch.Pattern.Replace(" ", "").Length / 2;
+                memOffset = result.Offset + patch.Pattern.Replace(" ", "").Length / 2;
                 result = ScanPattern(patch.Pattern, memOffset);
                 if (result.Found)
                 {
@@ -305,7 +304,7 @@ namespace p4gpc.inaba
 
             if (patch.Indices.Count > 0 || patch.AllIndices)
             {
-                memOffset += result.Offset + patch.Pattern.Replace(" ", "").Length / 2;
+                memOffset = result.Offset + patch.Pattern.Replace(" ", "").Length / 2;
                 result = ScanPattern(patch.Pattern, memOffset);
                 if (result.Found)
                 {
