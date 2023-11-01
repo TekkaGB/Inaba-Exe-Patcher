@@ -2,7 +2,7 @@
   "ModId": "p4gpc.inaba",
   "ModName": "Inaba Exe Patcher",
   "ModAuthor": "Tekka, AnimatedSwine37",
-  "ModVersion": "3.0.3",
+  "ModVersion": "3.0.4",
   "ModDescription": "Modify games at startup using simple patch files",
   "ModDll": "p4gpc.inaba.dll",
   "ModIcon": "Preview.png",
